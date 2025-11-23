@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  
+  // App specific
+  ownedLeagues  League[]  @relation("LeagueOwner")
+  memberships   LeagueMember[]
+  bets          Bet[]
+  notifications Notification[]
+  propUpdates   PropUpdate[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model League {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String   @unique @default(cuid())
+  startingCredits Int      @default(1000)
+  status      LeagueStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  ownerId     String
+  owner       User     @relation("LeagueOwner", fields: [ownerId], references: [id])
+  
+  members     LeagueMember[]
+  props       Prop[]
+}
+
+enum LeagueStatus {
+  PRE_DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+model LeagueMember {
+  id        String   @id @default(cuid())
+  leagueId  String
+  userId    String
+  credits   Int      @default(1000)
+  joinedAt  DateTime @default(now())
+  
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdProps Prop[] @relation("PropCreator")
+  targetedProps Prop[] @relation("PropTarget")
+
+  @@unique([leagueId, userId])
+}
+
+enum PropType {
+  HIT
+  LINE
+}
+
+enum PropStatus {
+  LIVE
+  LOCKED
+  RESOLVED
+  CANCELED
+}
+
+model Prop {
+  id                 String     @id @default(cuid())
+  leagueId           String
+  creatorId          String
+  type               PropType
+  question           String
+  targetUserId       String?    // Optional target user
+  bettingDeadline    DateTime
+  resolutionDeadline DateTime?
+  status             PropStatus @default(LIVE)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  creator   LeagueMember @relation("PropCreator", fields: [creatorId], references: [id])
+  targetPlayerId String?
+  targetPlayer LeagueMember? @relation("PropTarget", fields: [targetPlayerId], references: [id])
+  
+  bets      Bet[]
+  updates   PropUpdate[]
+  
+  winningSide String? // "YES", "NO", "OVER", "UNDER"
+}
+
+model Bet {
+  id        String   @id @default(cuid())
+  propId    String
+  userId    String
+  amount    Int
+  side      String   // "YES", "NO", "OVER", "UNDER"
+  createdAt DateTime @default(now())
+  
+  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PropUpdate {
+  id        String   @id @default(cuid())
+  propId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  
+  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
