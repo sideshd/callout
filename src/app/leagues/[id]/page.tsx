@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Trophy, TrendingUp, Plus, Copy, Check } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { LeagueActions } from "@/components/forms/league-actions"
 
 export default async function LeaguePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -61,6 +62,9 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        <Link href="/dashboard" className="text-slate-400 text-sm hover:text-white transition-colors hidden md:block">
+                            {session.user.name || session.user.email}
+                        </Link>
                         <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-sm font-medium border border-emerald-500/20">
                             {membership.credits} credits
                         </div>
@@ -71,6 +75,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                             <Plus className="size-4" />
                             New Prop
                         </Link>
+
+                        <LeagueActions leagueId={league.id} isOwner={league.ownerId === session.user.id} />
                     </div>
                 </div>
             </header>

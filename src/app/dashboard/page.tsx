@@ -36,7 +36,9 @@ export default async function Dashboard() {
                         <span className="text-slate-400">Out</span>
                     </Link>
                     <div className="flex items-center gap-4">
-                        <span className="text-slate-400 text-sm">{session.user.email}</span>
+                        <Link href="/dashboard" className="text-slate-400 text-sm hover:text-white transition-colors">
+                            {session.user.name || session.user.email}
+                        </Link>
                         <Link href="/api/auth/signout" className="text-sm text-slate-400 hover:text-white">
                             Sign out
                         </Link>

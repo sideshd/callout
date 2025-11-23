@@ -95,6 +95,7 @@ export async function createProp(formData: FormData) {
     const question = formData.get("question") as string
     const typeInput = formData.get("type") as string
     const targetPlayerId = formData.get("targetPlayerId") as string
+    const wagerAmount = parseInt(formData.get("wagerAmount") as string) || 0
     const bettingDeadlineStr = formData.get("bettingDeadline") as string
 
     if (!leagueId || !question || !typeInput || !bettingDeadlineStr) {
@@ -122,6 +123,7 @@ export async function createProp(formData: FormData) {
                 creatorId: membership.id,
                 question,
                 type,
+                wagerAmount,
                 targetPlayerId: targetPlayerId || null,
                 bettingDeadline: new Date(bettingDeadlineStr),
                 status: "LIVE"
@@ -141,11 +143,9 @@ export async function placeBet(formData: FormData) {
     if (!session?.user) return { error: "Not authenticated" }
 
     const propId = formData.get("propId") as string
-    const amount = parseInt(formData.get("amount") as string)
     const side = formData.get("side") as string
 
-    if (!propId || !amount || !side) return { error: "Missing required fields" }
-    if (amount <= 0) return { error: "Bet amount must be positive" }
+    if (!propId || !side) return { error: "Missing required fields" }
 
     try {
         const prop = await prisma.prop.findUnique({
@@ -168,19 +168,20 @@ export async function placeBet(formData: FormData) {
         })
 
         if (!membership) return { error: "Not a member" }
-        if (membership.credits < amount) return { error: "Insufficient credits" }
+        if (!membership) return { error: "Not a member" }
+        if (membership.credits < prop.wagerAmount) return { error: "Insufficient credits" }
 
         // Transaction: Deduct credits, create bet
         await prisma.$transaction([
             prisma.leagueMember.update({
                 where: { id: membership.id },
-                data: { credits: { decrement: amount } }
+                data: { credits: { decrement: prop.wagerAmount } }
             }),
             prisma.bet.create({
                 data: {
                     propId,
                     userId: session.user.id,
-                    amount,
+                    amount: prop.wagerAmount,
                     side
                 }
             })
@@ -393,5 +394,70 @@ export async function registerUser(formData: FormData) {
     } catch (error) {
         console.error("Registration error:", error);
         return { error: "Failed to create account" };
+    }
+}
+
+export async function leaveLeague(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return { error: "Not authenticated" }
+
+    const leagueId = formData.get("leagueId") as string
+    if (!leagueId) return { error: "League ID required" }
+
+    try {
+        const membership = await prisma.leagueMember.findUnique({
+            where: {
+                leagueId_userId: {
+                    leagueId,
+                    userId: session.user.id
+                }
+            }
+        })
+
+        if (!membership) return { error: "Not a member" }
+
+        // Check if last member
+        const memberCount = await prisma.leagueMember.count({
+            where: { leagueId }
+        })
+
+        if (memberCount === 1) {
+            // Delete league if last member
+            await prisma.league.delete({ where: { id: leagueId } })
+        } else {
+            // Just leave
+            await prisma.leagueMember.delete({ where: { id: membership.id } })
+        }
+
+        revalidatePath("/dashboard")
+        redirect("/dashboard")
+    } catch (error) {
+        console.error(error)
+        return { error: "Failed to leave league" }
+    }
+}
+
+export async function deleteLeague(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return { error: "Not authenticated" }
+
+    const leagueId = formData.get("leagueId") as string
+    if (!leagueId) return { error: "League ID required" }
+
+    try {
+        const league = await prisma.league.findUnique({
+            where: { id: leagueId }
+        })
+
+        if (!league) return { error: "League not found" }
+        if (league.ownerId !== session.user.id) return { error: "Not authorized" }
+
+        await prisma.league.delete({ where: { id: leagueId } })
+
+        revalidatePath("/dashboard")
+        return { success: true }
+    } catch (error) {
+        console.error(error)
+        return { error: "Failed to delete league" }
     }
 }

@@ -120,6 +120,7 @@ model Prop {
   creatorId          String
   type               PropType
   question           String
+  wagerAmount        Int        @default(0)
   targetUserId       String?    // Optional target user
   bettingDeadline    DateTime
   resolutionDeadline DateTime?

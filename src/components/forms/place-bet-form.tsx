@@ -9,9 +9,10 @@ interface PlaceBetFormProps {
     propType: "HIT" | "LINE"
     betsBySide: Record<string, number>
     maxCredits: number
+    wagerAmount: number
 }
 
-export function PlaceBetForm({ propId, propType, betsBySide, maxCredits }: PlaceBetFormProps) {
+export function PlaceBetForm({ propId, propType, betsBySide, maxCredits, wagerAmount }: PlaceBetFormProps) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
@@ -67,20 +68,9 @@ export function PlaceBetForm({ propId, propType, betsBySide, maxCredits }: Place
                 )}
             </div>
 
-            <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Wager Amount</label>
-                <div className="relative">
-                    <input
-                        type="number"
-                        name="amount"
-                        min="1"
-                        max={maxCredits}
-                        required
-                        placeholder={`Max: ${maxCredits}`}
-                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                    />
-                    <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
-                </div>
+            <div className="bg-slate-800/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-300">Wager Amount</span>
+                <span className="text-xl font-bold text-emerald-400">{wagerAmount} credits</span>
             </div>
 
             {error && (

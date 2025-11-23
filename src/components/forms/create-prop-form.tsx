@@ -47,6 +47,26 @@ export function CreatePropForm({ leagueId, members }: { leagueId: string, member
                     </select>
                 </div>
 
+
+
+                <div className="space-y-2">
+                    <label htmlFor="wagerAmount" className="text-sm font-medium text-slate-300">Wager Amount</label>
+                    <div className="relative">
+                        <input
+                            type="number"
+                            id="wagerAmount"
+                            name="wagerAmount"
+                            required
+                            min="0"
+                            defaultValue="10"
+                            className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                        />
+                        <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label htmlFor="targetPlayerId" className="text-sm font-medium text-slate-300">Target Player</label>
                     <select
@@ -75,11 +95,13 @@ export function CreatePropForm({ leagueId, members }: { leagueId: string, member
                 </div>
             </div>
 
-            {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-                    {error}
-                </div>
-            )}
+            {
+                error && (
+                    <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                        {error}
+                    </div>
+                )
+            }
 
             <button
                 type="submit"
@@ -89,6 +111,6 @@ export function CreatePropForm({ leagueId, members }: { leagueId: string, member
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {isPending ? "Posting..." : "Post Prop"}
             </button>
-        </form>
+        </form >
     )
 }

@@ -8,12 +8,13 @@ import { formatDistanceToNow, format } from "date-fns"
 import { PlaceBetForm } from "@/components/forms/place-bet-form"
 import { AdminControls } from "@/components/forms/admin-controls"
 
-export default async function PropPage({ params }: { params: { id: string } }) {
+export default async function PropPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const session = await getServerSession(authOptions)
     if (!session?.user) redirect("/api/auth/signin")
 
     const prop = await prisma.prop.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             league: true,
             creator: { include: { user: true } },
@@ -102,6 +103,7 @@ export default async function PropPage({ params }: { params: { id: string } }) {
                                 propType={prop.type}
                                 betsBySide={betsBySide}
                                 maxCredits={membership.credits}
+                                wagerAmount={prop.wagerAmount}
                             />
                         ) : (
                             <div className="text-center py-4">
