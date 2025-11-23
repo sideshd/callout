@@ -23,6 +23,8 @@ export function LeagueActions({ leagueId, isOwner }: LeagueActionsProps) {
             const result = await leaveLeague(formData)
             if (result?.error) {
                 alert(result.error)
+            } else {
+                router.push("/dashboard")
             }
         })
     }

@@ -430,7 +430,7 @@ export async function leaveLeague(formData: FormData) {
         }
 
         revalidatePath("/dashboard")
-        redirect("/dashboard")
+        return { success: true }
     } catch (error) {
         console.error(error)
         return { error: "Failed to leave league" }

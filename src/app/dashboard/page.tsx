@@ -46,7 +46,7 @@ export default async function Dashboard() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-12">
+            <main className="max-w-7xl mx-auto px-6 py-12 animate-fade-in">
                 <div className="flex items-center justify-between mb-8">
                     <h1 className="text-3xl font-bold">Your Leagues</h1>
                     <div className="flex gap-4">
