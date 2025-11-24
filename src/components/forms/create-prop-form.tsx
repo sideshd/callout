@@ -4,7 +4,7 @@ import { createProp } from "@/app/actions"
 import { useState, useTransition } from "react"
 import { Loader2 } from "lucide-react"
 
-export function CreatePropForm({ leagueId, members }: { leagueId: string, members: any[] }) {
+export function CreatePropForm({ leagueId, members, leagueMode }: { leagueId: string, members: any[], leagueMode: string }) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
@@ -65,6 +65,31 @@ export function CreatePropForm({ leagueId, members }: { leagueId: string, member
                     </div>
                 </div>
             </div>
+
+            {leagueMode === "RANK" && (
+                <div className="space-y-2">
+                    <label htmlFor="odds" className="text-sm font-medium text-slate-300">Odds (Payout Multiplier)</label>
+                    <select
+                        id="odds"
+                        name="odds"
+                        required
+                        defaultValue="2"
+                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none"
+                    >
+                        <option value="1">1:1 (Even money)</option>
+                        <option value="2">2:1 (Double)</option>
+                        <option value="3">3:1 (Triple)</option>
+                        <option value="4">4:1</option>
+                        <option value="5">5:1</option>
+                        <option value="6">6:1</option>
+                        <option value="7">7:1</option>
+                        <option value="8">8:1</option>
+                        <option value="9">9:1</option>
+                        <option value="10">10:1</option>
+                    </select>
+                    <p className="text-xs text-slate-500">Winners receive their bet × this multiplier</p>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

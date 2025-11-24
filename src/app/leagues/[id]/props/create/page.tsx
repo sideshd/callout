@@ -34,7 +34,7 @@ export default async function CreatePropPage({ params }: { params: Promise<{ id:
                     <h1 className="text-2xl font-bold mb-2">Create a Prop</h1>
                     <p className="text-slate-400 mb-8">Set the terms. Make it spicy.</p>
 
-                    <CreatePropForm leagueId={id} members={league.members} />
+                    <CreatePropForm leagueId={id} members={league.members} leagueMode={league.mode} />
                 </div>
             </div>
         </div>

@@ -98,6 +98,8 @@ export async function createProp(formData: FormData) {
     const typeInput = formData.get("type") as string
     const targetPlayerId = formData.get("targetPlayerId") as string
     const wagerAmount = parseInt(formData.get("wagerAmount") as string) || 0
+    const oddsStr = formData.get("odds") as string
+    const odds = oddsStr ? parseFloat(oddsStr) : null
     const bettingDeadlineStr = formData.get("bettingDeadline") as string
 
     if (!leagueId || !question || !typeInput || !bettingDeadlineStr) {
@@ -126,6 +128,7 @@ export async function createProp(formData: FormData) {
                 question,
                 type,
                 wagerAmount,
+                odds: odds,
                 targetPlayerId: targetPlayerId || null,
                 bettingDeadline: new Date(bettingDeadlineStr),
                 status: "LIVE"
