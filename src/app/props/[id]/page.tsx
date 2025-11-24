@@ -99,7 +99,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                             <div className="flex items-center gap-2 text-emerald-400">
                                 <TrendingUp className="size-4" />
                                 {prop.league.mode === "RANK" ? (
-                                    <span>Odds: {prop.odds}:1</span>
+                                    <span>Odds: {prop.odds?.toString()}:1</span>
                                 ) : (
                                     <span>{totalPool} credits pool</span>
                                 )}

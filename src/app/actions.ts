@@ -282,7 +282,7 @@ export async function resolveProp(formData: FormData) {
                     // This means the multiplier IS the odds value stored.
                     // Stored odds: 2, 3, 4 etc.
                     // So payout = bet.amount * (prop.odds || 2)
-                    const multiplier = prop.odds || 2
+                    const multiplier = prop.odds ? Number(prop.odds) : 2
                     payout = Math.floor(bet.amount * multiplier)
                 } else {
                     // Pool payout
