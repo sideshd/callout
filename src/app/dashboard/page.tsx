@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Plus, Users } from "lucide-react"
+import { Logo } from "@/components/ui/logo"
 
 export default async function Dashboard() {
     const session = await getServerSession(authOptions)
@@ -31,9 +32,12 @@ export default async function Dashboard() {
         <div className="min-h-screen bg-slate-950 text-white">
             <header className="border-b border-white/10 bg-white/5 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <Link href="/dashboard" className="text-xl font-bold tracking-tight">
-                        <span className="text-slate-300">Call</span>
-                        <span className="text-slate-400">Out</span>
+                    <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
+                        <Logo className="size-8" />
+                        <span>
+                            <span className="text-slate-300">Call</span>
+                            <span className="text-slate-400">Out</span>
+                        </span>
                     </Link>
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="text-slate-400 text-sm hover:text-white transition-colors">

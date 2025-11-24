@@ -6,6 +6,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 
 export default function Home() {
   return (
@@ -14,9 +15,7 @@ export default function Home() {
       <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="size-8 bg-gradient-to-br from-slate-400 to-slate-500 rounded-lg flex items-center justify-center">
-              <Target className="size-5 text-white" />
-            </div>
+            <Logo />
             <span className="text-white tracking-tight font-medium text-xl">
               <span className="text-slate-300">Call</span>
               <span className="text-slate-400">Out</span>
@@ -30,8 +29,8 @@ export default function Home() {
               Get Started
             </Link>
           </div>
-        </div>
-      </header>
+        </div >
+      </header >
 
       <main>
         {/* Hero Section */}
@@ -211,7 +210,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }
 
