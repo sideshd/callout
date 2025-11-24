@@ -104,6 +104,9 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                                 betsBySide={betsBySide}
                                 maxCredits={membership.credits}
                                 wagerAmount={prop.wagerAmount}
+                                leagueMode={prop.league.mode}
+                                minBet={prop.wagerAmount}
+                                odds={prop.odds ? Number(prop.odds) : undefined}
                             />
                         ) : (
                             <div className="text-center py-4">

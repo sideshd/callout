@@ -47,23 +47,41 @@ export function CreatePropForm({ leagueId, members, leagueMode }: { leagueId: st
                     </select>
                 </div>
 
-
-
-                <div className="space-y-2">
-                    <label htmlFor="wagerAmount" className="text-sm font-medium text-slate-300">Wager Amount</label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            id="wagerAmount"
-                            name="wagerAmount"
-                            required
-                            min="0"
-                            defaultValue="10"
-                            className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                        />
-                        <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                {leagueMode === "POOL" ? (
+                    <div className="space-y-2">
+                        <label htmlFor="wagerAmount" className="text-sm font-medium text-slate-300">Wager Amount</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                id="wagerAmount"
+                                name="wagerAmount"
+                                required
+                                min="0"
+                                defaultValue="10"
+                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                            />
+                            <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                        </div>
+                        <p className="text-xs text-slate-500">All bets must be this exact amount</p>
                     </div>
-                </div>
+                ) : (
+                    <div className="space-y-2">
+                        <label htmlFor="minBet" className="text-sm font-medium text-slate-300">Minimum Bet (Optional)</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                id="minBet"
+                                name="minBet"
+                                min="0"
+                                defaultValue="10"
+                                placeholder="0"
+                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                            />
+                            <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                        </div>
+                        <p className="text-xs text-slate-500">Bettors choose their wager amount (min: this value)</p>
+                    </div>
+                )}
             </div>
 
             {leagueMode === "RANK" && (
