@@ -2,8 +2,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect, notFound } from "next/navigation"
+import { placeBet, resolveProp, cancelProp, createComment } from "@/app/actions"
 import Link from "next/link"
-import { ArrowLeft, Clock, TrendingUp, AlertCircle } from "lucide-react"
+import { ArrowLeft, Trophy, TrendingUp, AlertCircle, Clock, CheckCircle2, XCircle, MessageSquare } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
 import { PlaceBetForm } from "@/components/forms/place-bet-form"
 import { AdminControls } from "@/components/forms/admin-controls"
@@ -19,7 +20,11 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
             league: true,
             creator: { include: { user: true } },
             targetPlayer: { include: { user: true } },
-            bets: { include: { user: true } }
+            bets: { include: { user: true } },
+            comments: {
+                include: { user: true },
+                orderBy: { createdAt: "desc" }
+            }
         }
     })
 
@@ -137,6 +142,61 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                     {isAdmin && prop.status !== "RESOLVED" && prop.status !== "CANCELED" && (
                         <AdminControls propId={prop.id} propType={prop.type} />
                     )}
+                </div>
+
+                {/* Comments Section */}
+                <div className="mt-12 max-w-2xl mx-auto">
+                    <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                        <MessageSquare className="size-5 text-slate-400" />
+                        Comments
+                    </h2>
+
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
+                        <form action={createComment} className="flex gap-4">
+                            <input type="hidden" name="propId" value={prop.id} />
+                            <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold shrink-0">
+                                {session.user.name?.[0] || "?"}
+                            </div>
+                            <div className="flex-1">
+                                <input
+                                    type="text"
+                                    name="content"
+                                    placeholder="Add a comment..."
+                                    className="w-full bg-transparent border-b border-white/10 pb-2 focus:outline-none focus:border-emerald-400 transition-colors placeholder:text-slate-600"
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className="text-emerald-400 hover:text-emerald-300 font-bold text-sm"
+                            >
+                                Post
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="space-y-6">
+                        {prop.comments.length === 0 ? (
+                            <p className="text-center text-slate-500 py-8">No comments yet. Be the first!</p>
+                        ) : (
+                            prop.comments.map((comment) => (
+                                <div key={comment.id} className="flex gap-4 group">
+                                    <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold shrink-0">
+                                        {comment.user.name?.[0] || "?"}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold text-sm">{comment.user.name}</span>
+                                            <span className="text-xs text-slate-500">
+                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-300 mt-1">{comment.content}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

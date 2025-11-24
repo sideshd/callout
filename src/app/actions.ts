@@ -80,6 +80,18 @@ export async function joinLeague(formData: FormData) {
                 credits: league.startingCredits
             }
         })
+
+        // Create activity
+        if (league.showActivityFeed) {
+            await prisma.activity.create({
+                data: {
+                    leagueId: league.id,
+                    userId: session.user.id,
+                    type: "JOIN",
+                    content: "joined the league"
+                }
+            })
+        }
     } catch (error) {
         console.error(error)
         return { error: "Failed to join league" }
@@ -121,7 +133,8 @@ export async function createProp(formData: FormData) {
                     leagueId,
                     userId: session.user.id
                 }
-            }
+            },
+            include: { league: true }
         })
 
         if (!membership) return { error: "Not a member of this league" }
@@ -139,6 +152,18 @@ export async function createProp(formData: FormData) {
                 status: "LIVE"
             }
         })
+
+        // Create activity
+        if (membership.league.showActivityFeed) {
+            await prisma.activity.create({
+                data: {
+                    leagueId,
+                    userId: session.user.id,
+                    type: "CREATE_PROP",
+                    content: `created a new prop: "${question}"`
+                }
+            })
+        }
     } catch (error) {
         console.error(error)
         return { error: "Failed to create prop" }
@@ -207,6 +232,18 @@ export async function placeBet(formData: FormData) {
                 }
             })
         ])
+
+        // Create activity
+        if (prop.league.showActivityFeed) {
+            await prisma.activity.create({
+                data: {
+                    leagueId: prop.leagueId,
+                    userId: session.user.id,
+                    type: "BET",
+                    content: `bet ${wagerAmount} credits on ${side}`
+                }
+            })
+        }
 
         revalidatePath(`/props/${propId}`)
     } catch (error) {
@@ -341,6 +378,20 @@ export async function resolveProp(formData: FormData) {
                     }
                 })
             }
+        }
+
+
+
+        // Create activity
+        if (prop.league.showActivityFeed) {
+            await prisma.activity.create({
+                data: {
+                    leagueId: prop.leagueId,
+                    userId: session.user.id,
+                    type: "WIN",
+                    content: `resolved "${prop.question}" (Winner: ${winningSide})`
+                }
+            })
         }
 
         await prisma.$transaction(updates)
@@ -500,5 +551,135 @@ export async function deleteLeague(formData: FormData) {
     } catch (error) {
         console.error(error)
         return { error: "Failed to delete league" }
+    }
+}
+
+export async function createComment(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    const propId = formData.get("propId") as string
+    const content = formData.get("content") as string
+
+    if (!propId || !content) {
+        // return { error: "Missing required fields" }
+        return
+    }
+
+    try {
+        const prop = await prisma.prop.findUnique({
+            where: { id: propId },
+            include: { league: true }
+        })
+
+        if (!prop) return
+
+        // Verify membership
+        const membership = await prisma.leagueMember.findUnique({
+            where: {
+                leagueId_userId: {
+                    leagueId: prop.leagueId,
+                    userId: session.user.id
+                }
+            }
+        })
+
+        if (!membership) return
+
+        await prisma.comment.create({
+            data: {
+                propId,
+                userId: session.user.id,
+                content
+            }
+        })
+
+        // Create activity
+        if (prop.league.showActivityFeed) {
+            await prisma.activity.create({
+                data: {
+                    leagueId: prop.leagueId,
+                    userId: session.user.id,
+                    type: "COMMENT",
+                    content: `commented on "${prop.question}"`
+                }
+            })
+        }
+
+        revalidatePath(`/props/${propId}`)
+    } catch (error) {
+        console.error(error)
+        // return { error: "Failed to create comment" }
+    }
+}
+
+export async function updateLeagueSettings(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    const leagueId = formData.get("leagueId") as string
+    const allowPropCreation = formData.get("allowPropCreation") === "true"
+    const showActivityFeed = formData.get("showActivityFeed") === "true"
+
+    if (!leagueId) return
+
+    try {
+        const league = await prisma.league.findUnique({
+            where: { id: leagueId }
+        })
+
+        if (!league) return
+        if (league.ownerId !== session.user.id) return
+
+        await prisma.league.update({
+            where: { id: leagueId },
+            data: {
+                allowPropCreation,
+                showActivityFeed
+            }
+        })
+
+        revalidatePath(`/leagues/${leagueId}`)
+    } catch (error) {
+        console.error(error)
+        // return { error: "Failed to update settings" }
+    }
+}
+
+export async function adminAction(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    const leagueId = formData.get("leagueId") as string
+    const targetUserId = formData.get("targetUserId") as string
+    const action = formData.get("action") as string
+
+    if (!leagueId || !targetUserId || !action) return
+
+    try {
+        const league = await prisma.league.findUnique({
+            where: { id: leagueId }
+        })
+
+        if (!league) return
+        if (league.ownerId !== session.user.id) return
+
+        if (action === "KICK") {
+            if (targetUserId === league.ownerId) return
+
+            await prisma.leagueMember.delete({
+                where: {
+                    leagueId_userId: {
+                        leagueId,
+                        userId: targetUserId
+                    }
+                }
+            })
+        }
+
+        revalidatePath(`/leagues/${leagueId}`)
+    } catch (error) {
+        console.error(error)
+        // return { error: "Failed to perform admin action" }
     }
 }

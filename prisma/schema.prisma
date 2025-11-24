@@ -26,6 +26,8 @@ model User {
   bets          Bet[]
   notifications Notification[]
   propUpdates   PropUpdate[]
+  comments      Comment[]
+  activities    Activity[]
 }
 
 model Account {
@@ -71,6 +73,8 @@ model League {
   startingCredits Int          @default(1000)
   status          LeagueStatus @default(ACTIVE)
   mode            LeagueMode   @default(POOL)
+  allowPropCreation Boolean    @default(true)
+  showActivityFeed  Boolean    @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   
@@ -79,6 +83,7 @@ model League {
   
   members         LeagueMember[]
   props           Prop[]
+  activities      Activity[]
 }
 
 model LeagueMember {
@@ -119,6 +124,7 @@ model Prop {
   
   bets      Bet[]
   updates   PropUpdate[]
+  comments  Comment[]
 }
 
 model Bet {
@@ -131,6 +137,29 @@ model Bet {
   
   prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  propId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  leagueId  String
+  userId    String
+  type      ActivityType
+  content   String
+  createdAt DateTime     @default(now())
+
+  league    League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PropUpdate {
@@ -175,4 +204,13 @@ enum PropStatus {
   LOCKED
   RESOLVED
   CANCELED
+}
+
+enum ActivityType {
+  JOIN
+  CREATE_PROP
+  BET
+  WIN
+  COMMENT
+  ADMIN
 }
