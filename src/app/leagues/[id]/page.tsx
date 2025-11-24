@@ -24,6 +24,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                 orderBy: { createdAt: "desc" },
                 include: {
                     creator: { include: { user: true } },
+                    targetPlayer: { include: { user: true } },
                     bets: true
                 }
             }
@@ -125,11 +126,22 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                                                 <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors">
                                                     {prop.question}
                                                 </h3>
-                                                {prop.status === "LOCKED" && (
-                                                    <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
-                                                        Locked
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
+                                                        {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
                                                     </span>
-                                                )}
+                                                    {prop.targetPlayer && (
+                                                        <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                            <span>@</span>
+                                                            {prop.targetPlayer.user.name}
+                                                        </span>
+                                                    )}
+                                                    {prop.status === "LOCKED" && (
+                                                        <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
+                                                            Locked
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="flex items-center justify-between text-sm text-slate-400">
@@ -143,7 +155,11 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                                                 </div>
                                                 <div className="flex items-center gap-1 text-emerald-400">
                                                     <TrendingUp className="size-4" />
-                                                    <span>{prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)} pool</span>
+                                                    {league.mode === "RANK" ? (
+                                                        <span>Odds: {prop.odds?.toString()}:1</span>
+                                                    ) : (
+                                                        <span>{prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)} pool</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </Link>

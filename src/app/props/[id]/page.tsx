@@ -18,6 +18,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
         include: {
             league: true,
             creator: { include: { user: true } },
+            targetPlayer: { include: { user: true } },
             bets: { include: { user: true } }
         }
     })
@@ -71,6 +72,18 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                             </span>
                         </div>
 
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
+                                {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
+                            </span>
+                            {prop.targetPlayer && (
+                                <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                    <span>@</span>
+                                    {prop.targetPlayer.user.name}
+                                </span>
+                            )}
+                        </div>
+
                         <h1 className="text-2xl font-bold mb-6">{prop.question}</h1>
 
                         <div className="flex items-center gap-6 text-sm text-slate-400">
@@ -85,7 +98,11 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                             </div>
                             <div className="flex items-center gap-2 text-emerald-400">
                                 <TrendingUp className="size-4" />
-                                <span>{totalPool} credits pool</span>
+                                {prop.league.mode === "RANK" ? (
+                                    <span>Odds: {prop.odds}:1</span>
+                                ) : (
+                                    <span>{totalPool} credits pool</span>
+                                )}
                             </div>
                         </div>
                     </div>

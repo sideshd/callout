@@ -270,7 +270,24 @@ export async function resolveProp(formData: FormData) {
         // Distribute winnings
         if (W_total > 0) {
             for (const bet of winningBets) {
-                const payout = Math.floor(bet.amount + (bet.amount / W_total) * L_total)
+                let payout = 0
+
+                if (prop.league.mode === "RANK") {
+                    // Fixed odds payout
+                    // If odds are 3 (3:1), payout is bet * 3
+                    // The user said: "if odds are 3:1 and I bet 100, then I win back 300"
+                    // This implies the payout is bet * odds.
+                    // Usually 3:1 means profit is 3x, total return is 4x.
+                    // But user example: "win back 300" on 100 bet with 3:1 odds.
+                    // This means the multiplier IS the odds value stored.
+                    // Stored odds: 2, 3, 4 etc.
+                    // So payout = bet.amount * (prop.odds || 2)
+                    const multiplier = prop.odds || 2
+                    payout = Math.floor(bet.amount * multiplier)
+                } else {
+                    // Pool payout
+                    payout = Math.floor(bet.amount + (bet.amount / W_total) * L_total)
+                }
 
                 // Find member to update
                 const member = await prisma.leagueMember.findUnique({
@@ -290,37 +307,40 @@ export async function resolveProp(formData: FormData) {
                 }
             }
         } else {
-            // No winners, refund everyone? Or house takes it?
-            // User said: "If nobody bet the winning side → treat as CANCELED and refund everyone."
-            // I'll handle refund logic here if W_total is 0.
-            // Actually, let's just call cancelProp logic or duplicate it.
-            // For simplicity, if W_total == 0, we refund ALL bets.
-            for (const bet of prop.bets) {
-                const member = await prisma.leagueMember.findUnique({
-                    where: {
-                        leagueId_userId: {
-                            leagueId: prop.leagueId,
-                            userId: bet.userId
+            // No winners
+            if (prop.league.mode === "RANK") {
+                // In RANK mode, if you lose, you lose. House wins (nobody gets credits).
+                // So we do nothing for losers.
+                // But wait, if NOBODY won, does that mean everyone lost? Yes.
+                // So no refunds in RANK mode unless cancelled.
+            } else {
+                // In POOL mode:
+                // If nobody bet the winning side → treat as CANCELED and refund everyone.
+                for (const bet of prop.bets) {
+                    const member = await prisma.leagueMember.findUnique({
+                        where: {
+                            leagueId_userId: {
+                                leagueId: prop.leagueId,
+                                userId: bet.userId
+                            }
                         }
+                    })
+                    if (member) {
+                        updates.push(prisma.leagueMember.update({
+                            where: { id: member.id },
+                            data: { credits: { increment: bet.amount } }
+                        }))
+                    }
+                }
+                // Update status to CANCELED instead of RESOLVED
+                updates[0] = prisma.prop.update({
+                    where: { id: propId },
+                    data: {
+                        status: "CANCELED",
+                        resolutionDeadline: new Date()
                     }
                 })
-                if (member) {
-                    updates.push(prisma.leagueMember.update({
-                        where: { id: member.id },
-                        data: { credits: { increment: bet.amount } }
-                    }))
-                }
             }
-            // Update status to CANCELED instead of RESOLVED if refunding?
-            // User said "treat as CANCELED".
-            // So I'll override the first update.
-            updates[0] = prisma.prop.update({
-                where: { id: propId },
-                data: {
-                    status: "CANCELED",
-                    resolutionDeadline: new Date()
-                }
-            })
         }
 
         await prisma.$transaction(updates)
