@@ -15,6 +15,7 @@ export async function createLeague(formData: FormData) {
     const name = formData.get("name") as string
     const description = formData.get("description") as string
     const startingCredits = parseInt(formData.get("startingCredits") as string) || 1000
+    const mode = (formData.get("mode") as string) || "POOL"
 
     if (!name) return { error: "Name is required" }
 
@@ -25,6 +26,7 @@ export async function createLeague(formData: FormData) {
                 name,
                 description,
                 startingCredits,
+                mode: mode as "POOL" | "RANK",
                 ownerId: session.user.id,
                 members: {
                     create: {

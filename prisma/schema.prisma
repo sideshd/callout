@@ -64,26 +64,21 @@ model VerificationToken {
 }
 
 model League {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  inviteCode  String   @unique @default(cuid())
-  startingCredits Int      @default(1000)
-  status      LeagueStatus @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String       @id @default(cuid())
+  name            String
+  description     String?
+  inviteCode      String       @unique @default(cuid())
+  startingCredits Int          @default(1000)
+  status          LeagueStatus @default(ACTIVE)
+  mode            LeagueMode   @default(POOL)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   
-  ownerId     String
-  owner       User     @relation("LeagueOwner", fields: [ownerId], references: [id])
+  ownerId         String
+  owner           User         @relation("LeagueOwner", fields: [ownerId], references: [id])
   
-  members     LeagueMember[]
-  props       Prop[]
-}
-
-enum LeagueStatus {
-  PRE_DRAFT
-  ACTIVE
-  COMPLETED
+  members         LeagueMember[]
+  props           Prop[]
 }
 
 model LeagueMember {
@@ -102,18 +97,6 @@ model LeagueMember {
   @@unique([leagueId, userId])
 }
 
-enum PropType {
-  HIT
-  LINE
-}
-
-enum PropStatus {
-  LIVE
-  LOCKED
-  RESOLVED
-  CANCELED
-}
-
 model Prop {
   id                 String     @id @default(cuid())
   leagueId           String
@@ -121,22 +104,21 @@ model Prop {
   type               PropType
   question           String
   wagerAmount        Int        @default(0)
-  targetUserId       String?    // Optional target user
+  odds               Decimal?   @db.Decimal(10, 2)
+  targetPlayerId     String?
   bettingDeadline    DateTime
   resolutionDeadline DateTime?
+  winningSide        String?
   status             PropStatus @default(LIVE)
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  creator   LeagueMember @relation("PropCreator", fields: [creatorId], references: [id])
-  targetPlayerId String?
-  targetPlayer LeagueMember? @relation("PropTarget", fields: [targetPlayerId], references: [id])
+  league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  creator       LeagueMember   @relation("PropCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  targetPlayer  LeagueMember?  @relation("PropTarget", fields: [targetPlayerId], references: [id])
   
   bets      Bet[]
   updates   PropUpdate[]
-  
-  winningSide String? // "YES", "NO", "OVER", "UNDER"
 }
 
 model Bet {
@@ -170,4 +152,27 @@ model Notification {
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum LeagueStatus {
+  PRE_DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum LeagueMode {
+  POOL  // Fixed credits, zero-sum (poker-style)
+  RANK  // Odds-based, unlimited credits (sportsbook-style)
+}
+
+enum PropType {
+  HIT
+  LINE
+}
+
+enum PropStatus {
+  LIVE
+  LOCKED
+  RESOLVED
+  CANCELED
 }

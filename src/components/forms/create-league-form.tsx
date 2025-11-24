@@ -45,6 +45,38 @@ export function CreateLeagueForm() {
                 />
             </div>
 
+            <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-300">League Mode</label>
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="relative cursor-pointer">
+                        <input
+                            type="radio"
+                            name="mode"
+                            value="POOL"
+                            defaultChecked
+                            className="peer sr-only"
+                        />
+                        <div className="bg-slate-900/50 border-2 border-white/10 rounded-xl p-4 transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 hover:border-white/20">
+                            <div className="font-bold text-white mb-1">🎰 POOL</div>
+                            <div className="text-xs text-slate-400">Poker-style: Fixed credits, zero-sum betting</div>
+                        </div>
+                    </label>
+
+                    <label className="relative cursor-pointer">
+                        <input
+                            type="radio"
+                            name="mode"
+                            value="RANK"
+                            className="peer sr-only"
+                        />
+                        <div className="bg-slate-900/50 border-2 border-white/10 rounded-xl p-4 transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 hover:border-white/20">
+                            <div className="font-bold text-white mb-1">📊 RANK</div>
+                            <div className="text-xs text-slate-400">Sportsbook-style: Odds-based, unlimited credits</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
             <div className="space-y-2">
                 <label htmlFor="description" className="text-sm font-medium text-slate-300">Description (Optional)</label>
                 <textarea
