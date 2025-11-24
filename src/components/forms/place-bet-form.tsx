@@ -108,7 +108,7 @@ export function PlaceBetForm({ propId, propType, betsBySide, maxCredits, wagerAm
 
             <div className="bg-slate-800/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-300">Wager Amount</span>
-                <span className="text-xl font-bold text-emerald-400">{wagerAmount} credits</span>
+                <span className="text-xl font-bold text-emerald-400">{isRankMode ? customAmount : wagerAmount} credits</span>
             </div>
 
             {error && (

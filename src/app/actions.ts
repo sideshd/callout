@@ -154,6 +154,8 @@ export async function placeBet(formData: FormData) {
 
     const propId = formData.get("propId") as string
     const side = formData.get("side") as string
+    const amountStr = formData.get("amount") as string
+    const amount = amountStr ? parseInt(amountStr) : 0
 
     if (!propId || !side) return { error: "Missing required fields" }
 
@@ -178,21 +180,29 @@ export async function placeBet(formData: FormData) {
         })
 
         if (!membership) return { error: "Not a member" }
-        if (!membership) return { error: "Not a member" }
-        if (!membership) return { error: "Not a member" }
-        if (membership.credits < prop.wagerAmount) return { error: "Insufficient credits" }
+
+        // Determine wager amount
+        let wagerAmount = prop.wagerAmount
+        if (prop.league.mode === "RANK") {
+            if (!amount || amount < prop.wagerAmount) {
+                return { error: `Minimum bet is ${prop.wagerAmount}` }
+            }
+            wagerAmount = amount
+        }
+
+        if (membership.credits < wagerAmount) return { error: "Insufficient credits" }
 
         // Transaction: Deduct credits, create bet
         await prisma.$transaction([
             prisma.leagueMember.update({
                 where: { id: membership.id },
-                data: { credits: { decrement: prop.wagerAmount } }
+                data: { credits: { decrement: wagerAmount } }
             }),
             prisma.bet.create({
                 data: {
                     propId,
                     userId: session.user.id,
-                    amount: prop.wagerAmount,
+                    amount: wagerAmount,
                     side
                 }
             })
