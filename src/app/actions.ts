@@ -97,7 +97,12 @@ export async function createProp(formData: FormData) {
     const question = formData.get("question") as string
     const typeInput = formData.get("type") as string
     const targetPlayerId = formData.get("targetPlayerId") as string
-    const wagerAmount = parseInt(formData.get("wagerAmount") as string) || 0
+
+    // Handle both POOL mode (wagerAmount) and RANK mode (minBet)
+    const wagerAmountStr = formData.get("wagerAmount") as string
+    const minBetStr = formData.get("minBet") as string
+    const wagerAmount = parseInt(wagerAmountStr || minBetStr || "0") || 0
+
     const oddsStr = formData.get("odds") as string
     const odds = oddsStr ? parseFloat(oddsStr) : null
     const bettingDeadlineStr = formData.get("bettingDeadline") as string
@@ -172,6 +177,7 @@ export async function placeBet(formData: FormData) {
             }
         })
 
+        if (!membership) return { error: "Not a member" }
         if (!membership) return { error: "Not a member" }
         if (!membership) return { error: "Not a member" }
         if (membership.credits < prop.wagerAmount) return { error: "Insufficient credits" }
