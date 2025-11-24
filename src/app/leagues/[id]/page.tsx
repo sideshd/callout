@@ -7,6 +7,8 @@ import { Logo } from "@/components/ui/logo"
 import { ArrowLeft, Copy, Share2 } from "lucide-react"
 import Link from "next/link"
 
+export const dynamic = "force-dynamic"
+
 export default async function LeaguePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const session = await getServerSession(authOptions)
@@ -96,10 +98,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                                     <Copy className="size-4" />
                                 </button>
                             </div>
-                            <button className="bg-white text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 transition-colors flex items-center gap-2">
-                                <Share2 className="size-4" />
-                                <span className="hidden sm:inline">Invite</span>
-                            </button>
                         </div>
                     </div>
                 </div>

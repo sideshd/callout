@@ -491,10 +491,10 @@ export async function registerUser(formData: FormData) {
 
 export async function leaveLeague(formData: FormData) {
     const session = await getServerSession(authOptions)
-    if (!session?.user) return { error: "Not authenticated" }
+    if (!session?.user) return
 
     const leagueId = formData.get("leagueId") as string
-    if (!leagueId) return { error: "League ID required" }
+    if (!leagueId) return
 
     try {
         const membership = await prisma.leagueMember.findUnique({
@@ -506,7 +506,7 @@ export async function leaveLeague(formData: FormData) {
             }
         })
 
-        if (!membership) return { error: "Not a member" }
+        if (!membership) return
 
         // Check if last member
         const memberCount = await prisma.leagueMember.count({
@@ -522,35 +522,31 @@ export async function leaveLeague(formData: FormData) {
         }
 
         revalidatePath("/dashboard")
-        return { success: true }
     } catch (error) {
         console.error(error)
-        return { error: "Failed to leave league" }
     }
 }
 
 export async function deleteLeague(formData: FormData) {
     const session = await getServerSession(authOptions)
-    if (!session?.user) return { error: "Not authenticated" }
+    if (!session?.user) return
 
     const leagueId = formData.get("leagueId") as string
-    if (!leagueId) return { error: "League ID required" }
+    if (!leagueId) return
 
     try {
         const league = await prisma.league.findUnique({
             where: { id: leagueId }
         })
 
-        if (!league) return { error: "League not found" }
-        if (league.ownerId !== session.user.id) return { error: "Not authorized" }
+        if (!league) return
+        if (league.ownerId !== session.user.id) return
 
         await prisma.league.delete({ where: { id: leagueId } })
 
         revalidatePath("/dashboard")
-        return { success: true }
     } catch (error) {
         console.error(error)
-        return { error: "Failed to delete league" }
     }
 }
 
@@ -681,5 +677,40 @@ export async function adminAction(formData: FormData) {
     } catch (error) {
         console.error(error)
         // return { error: "Failed to perform admin action" }
+    }
+}
+
+export async function updateMemberCredits(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    const leagueId = formData.get("leagueId") as string
+    const targetUserId = formData.get("targetUserId") as string
+    const creditsStr = formData.get("credits") as string
+    const credits = parseInt(creditsStr)
+
+    if (!leagueId || !targetUserId || isNaN(credits)) return
+
+    try {
+        const league = await prisma.league.findUnique({
+            where: { id: leagueId }
+        })
+
+        if (!league) return
+        if (league.ownerId !== session.user.id) return
+
+        await prisma.leagueMember.update({
+            where: {
+                leagueId_userId: {
+                    leagueId,
+                    userId: targetUserId
+                }
+            },
+            data: { credits }
+        })
+
+        revalidatePath(`/leagues/${leagueId}`)
+    } catch (error) {
+        console.error(error)
     }
 }

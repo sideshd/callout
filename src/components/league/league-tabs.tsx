@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { League, LeagueMember, Prop, Activity, User } from "@prisma/client"
 import { formatDistanceToNow } from "date-fns"
-import { Trophy, TrendingUp, Settings, Users, Activity as ActivityIcon, MessageSquare } from "lucide-react"
+import { Trophy, TrendingUp, Settings, Users, Activity as ActivityIcon, MessageSquare, LogOut, Trash2, Edit2, Check, X } from "lucide-react"
 import Link from "next/link"
-import { updateLeagueSettings, adminAction } from "@/app/actions"
+import { updateLeagueSettings, adminAction, updateMemberCredits, leaveLeague, deleteLeague } from "@/app/actions"
 
 type LeagueTabsProps = {
     league: League & { members: (LeagueMember & { user: User })[] }
@@ -17,15 +17,16 @@ type LeagueTabsProps = {
 }
 
 export function LeagueTabs({ league, activeProps, pastProps, activities, currentUserId, isOwner }: LeagueTabsProps) {
-    const [activeTab, setActiveTab] = useState<"board" | "feed" | "admin">("board")
+    const [activeTab, setActiveTab] = useState<"board" | "feed" | "admin" | "settings">("board")
+    const [editingCredits, setEditingCredits] = useState<string | null>(null)
 
     return (
         <div>
             {/* Tabs Header */}
-            <div className="flex items-center gap-4 mb-8 border-b border-white/10">
+            <div className="flex items-center gap-4 mb-8 border-b border-white/10 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab("board")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative ${activeTab === "board" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "board" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
                 >
                     Board
                     {activeTab === "board" && (
@@ -34,7 +35,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                 </button>
                 <button
                     onClick={() => setActiveTab("feed")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative ${activeTab === "feed" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "feed" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
                 >
                     Activity Feed
                     {activeTab === "feed" && (
@@ -44,7 +45,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                 {isOwner && (
                     <button
                         onClick={() => setActiveTab("admin")}
-                        className={`pb-4 px-2 text-sm font-bold transition-colors relative ${activeTab === "admin" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                        className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "admin" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
                     >
                         Admin
                         {activeTab === "admin" && (
@@ -52,6 +53,15 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                         )}
                     </button>
                 )}
+                <button
+                    onClick={() => setActiveTab("settings")}
+                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "settings" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                >
+                    Settings
+                    {activeTab === "settings" && (
+                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
+                    )}
+                </button>
             </div>
 
             {/* Tab Content */}
@@ -309,7 +319,40 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                                 {member.user.name}
                                                 {member.userId === currentUserId && <span className="text-xs text-slate-500 ml-2">(You)</span>}
                                             </p>
-                                            <p className="text-xs text-slate-400">{member.credits} credits</p>
+
+                                            {editingCredits === member.userId ? (
+                                                <form action={async (formData) => {
+                                                    await updateMemberCredits(formData)
+                                                    setEditingCredits(null)
+                                                }} className="flex items-center gap-2 mt-1">
+                                                    <input type="hidden" name="leagueId" value={league.id} />
+                                                    <input type="hidden" name="targetUserId" value={member.userId} />
+                                                    <input
+                                                        type="number"
+                                                        name="credits"
+                                                        defaultValue={member.credits}
+                                                        className="w-20 bg-slate-800 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-400"
+                                                    />
+                                                    <button type="submit" className="text-emerald-400 hover:text-emerald-300">
+                                                        <Check className="size-4" />
+                                                    </button>
+                                                    <button type="button" onClick={() => setEditingCredits(null)} className="text-red-400 hover:text-red-300">
+                                                        <X className="size-4" />
+                                                    </button>
+                                                </form>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-xs text-slate-400">{member.credits} credits</p>
+                                                    {member.userId !== currentUserId && (
+                                                        <button
+                                                            onClick={() => setEditingCredits(member.userId)}
+                                                            className="text-slate-500 hover:text-white transition-colors"
+                                                        >
+                                                            <Edit2 className="size-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -323,12 +366,64 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                                     Kick
                                                 </button>
                                             </form>
-                                            {/* Add Set Credits and Transfer Ownership modals/inputs here if needed */}
                                         </div>
                                     )}
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "settings" && (
+                <div className="max-w-2xl mx-auto space-y-8">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+                            <Settings className="size-5 text-slate-400" />
+                            Settings
+                        </h2>
+
+                        {isOwner ? (
+                            <div className="space-y-6">
+                                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                    <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2">
+                                        <Trash2 className="size-4" />
+                                        Danger Zone
+                                    </h3>
+                                    <p className="text-sm text-red-300/70 mb-4">
+                                        Deleting the league is irreversible. All data, including props and bets, will be lost.
+                                    </p>
+                                    <form action={deleteLeague}>
+                                        <input type="hidden" name="leagueId" value={league.id} />
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-red-500 text-white font-bold py-2 rounded-lg hover:bg-red-600 transition-colors"
+                                        >
+                                            Delete League
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="p-4 bg-slate-900/50 rounded-xl">
+                                    <h3 className="font-bold mb-2 text-white">Leave League</h3>
+                                    <p className="text-sm text-slate-400 mb-4">
+                                        You will lose your current credits and betting history in this league.
+                                    </p>
+                                    <form action={leaveLeague}>
+                                        <input type="hidden" name="leagueId" value={league.id} />
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <LogOut className="size-4" />
+                                            Leave League
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

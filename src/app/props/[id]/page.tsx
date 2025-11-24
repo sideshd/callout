@@ -9,6 +9,8 @@ import { formatDistanceToNow, format } from "date-fns"
 import { PlaceBetForm } from "@/components/forms/place-bet-form"
 import { AdminControls } from "@/components/forms/admin-controls"
 
+export const dynamic = "force-dynamic"
+
 export default async function PropPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const session = await getServerSession(authOptions)
@@ -93,8 +95,8 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
 
                         <div className="flex items-center gap-6 text-sm text-slate-400">
                             <div className="flex items-center gap-2">
-                                <Clock className="size-4" />
-                                <span>
+                                <Clock className="size-4 text-amber-400" />
+                                <span className="text-amber-400 font-bold">
                                     {isLive
                                         ? `Closes ${formatDistanceToNow(prop.bettingDeadline, { addSuffix: true })}`
                                         : `Closed ${format(prop.bettingDeadline, "MMM d, h:mm a")}`
