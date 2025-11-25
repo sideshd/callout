@@ -123,6 +123,10 @@ export async function createProp(formData: FormData) {
         return { error: "Missing required fields" }
     }
 
+    if (targetPlayerId === session.user.id) {
+        return { error: "You cannot create a prop about yourself" }
+    }
+
     const type = PropType[typeInput as keyof typeof PropType]
 
     try {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { LeagueTabs } from "@/components/league/league-tabs"
 import { Logo } from "@/components/ui/logo"
-import { ArrowLeft, Copy, Share2 } from "lucide-react"
+import { ArrowLeft, Copy, Share2, Plus } from "lucide-react"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
@@ -89,6 +89,15 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                             <p className="text-slate-400 max-w-xl">{league.description}</p>
                         </div>
                         <div className="flex items-center gap-2">
+                            {(league.allowPropCreation || league.ownerId === session.user.id) && (
+                                <Link
+                                    href={`/leagues/${league.id}/props/create`}
+                                    className="bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-2"
+                                >
+                                    <Plus className="size-4" />
+                                    New Prop
+                                </Link>
+                            )}
                             <div className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3">
                                 <div className="text-xs">
                                     <span className="text-slate-500 block">Invite Code</span>

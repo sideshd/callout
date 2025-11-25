@@ -19,6 +19,21 @@ type LeagueTabsProps = {
 export function LeagueTabs({ league, activeProps, pastProps, activities, currentUserId, isOwner }: LeagueTabsProps) {
     const [activeTab, setActiveTab] = useState<"board" | "feed" | "admin" | "settings">("board")
     const [editingCredits, setEditingCredits] = useState<string | null>(null)
+    const [filterType, setFilterType] = useState<"ALL" | "HIT" | "LINE">("ALL")
+    const [filterBetStatus, setFilterBetStatus] = useState<"ALL" | "BET_ON" | "NOT_BET_ON">("ALL")
+
+    const filteredProps = activeProps.filter(prop => {
+        // Filter by Type
+        if (filterType === "HIT" && prop.type !== "HIT") return false
+        if (filterType === "LINE" && prop.type !== "LINE") return false
+
+        // Filter by Bet Status
+        const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
+        if (filterBetStatus === "BET_ON" && !hasBet) return false
+        if (filterBetStatus === "NOT_BET_ON" && hasBet) return false
+
+        return true
+    })
 
     return (
         <div>
@@ -71,13 +86,38 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                     <div className="lg:col-span-2 space-y-8">
                         {/* Active Props */}
                         <div>
-                            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
-                                Active Props
-                            </h2>
-                            {activeProps.length === 0 ? (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
+                                    Active Props
+                                </h2>
+
+                                {/* Filters */}
+                                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
+                                    <select
+                                        value={filterType}
+                                        onChange={(e) => setFilterType(e.target.value as any)}
+                                        className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                                    >
+                                        <option value="ALL">All Types</option>
+                                        <option value="HIT">Hit/Miss</option>
+                                        <option value="LINE">Over/Under</option>
+                                    </select>
+                                    <select
+                                        value={filterBetStatus}
+                                        onChange={(e) => setFilterBetStatus(e.target.value as any)}
+                                        className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                                    >
+                                        <option value="ALL">All Props</option>
+                                        <option value="BET_ON">My Bets</option>
+                                        <option value="NOT_BET_ON">New Props</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {filteredProps.length === 0 ? (
                                 <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl bg-white/5">
-                                    <p className="text-slate-400 mb-4">No active props right now.</p>
+                                    <p className="text-slate-400 mb-4">No props match your filters.</p>
                                     {league.allowPropCreation || isOwner ? (
                                         <Link
                                             href={`/leagues/${league.id}/props/create`}
@@ -91,54 +131,69 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {activeProps.map((prop) => (
-                                        <Link
-                                            key={prop.id}
-                                            href={`/props/${prop.id}`}
-                                            className="block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:border-white/20 group"
-                                        >
-                                            <div className="flex items-start justify-between gap-4 mb-4">
-                                                <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors">
-                                                    {prop.question}
-                                                </h3>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
-                                                        {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
-                                                    </span>
-                                                    {prop.targetPlayer && (
-                                                        <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
-                                                            <span>@</span>
-                                                            {prop.targetPlayer.user.name}
-                                                        </span>
-                                                    )}
-                                                    {prop.status === "LOCKED" && (
-                                                        <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
-                                                            Locked
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
+                                    {filteredProps.map((prop) => {
+                                        const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
+                                        const isDeadlineClose = new Date(prop.bettingDeadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 // 24 hours
 
-                                            <div className="flex items-center justify-between text-sm text-slate-400">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="size-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white font-bold">
-                                                        {prop.creator.user.name?.[0] || "?"}
+                                        return (
+                                            <Link
+                                                key={prop.id}
+                                                href={`/props/${prop.id}`}
+                                                className="block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:border-white/20 group"
+                                            >
+                                                <div className="flex items-start justify-between gap-4 mb-4">
+                                                    <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors">
+                                                        {prop.question}
+                                                    </h3>
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
+                                                                {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
+                                                            </span>
+                                                            {prop.targetPlayer && (
+                                                                <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                                    <span>@</span>
+                                                                    {prop.targetPlayer.user.name}
+                                                                </span>
+                                                            )}
+                                                            {prop.status === "LOCKED" && (
+                                                                <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
+                                                                    Locked
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {hasBet && (
+                                                            <span className="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                                <Check className="size-3" />
+                                                                Bet Placed
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <span>{prop.creator.user.name}</span>
-                                                    <span>•</span>
-                                                    <span>{formatDistanceToNow(new Date(prop.createdAt), { addSuffix: true })}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1 text-emerald-400">
-                                                    <TrendingUp className="size-4" />
-                                                    {league.mode === "RANK" ? (
-                                                        <span>Odds: {prop.odds?.toString()}:1</span>
-                                                    ) : (
-                                                        <span>{prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)} pool</span>
-                                                    )}
+
+                                                <div className="flex items-center justify-between text-sm text-slate-400">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="size-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white font-bold">
+                                                            {prop.creator.user.name?.[0] || "?"}
+                                                        </div>
+                                                        <span>{prop.creator.user.name}</span>
+                                                        <span>•</span>
+                                                        <span className={isDeadlineClose ? "text-amber-400 font-bold" : ""}>
+                                                            Closes {formatDistanceToNow(new Date(prop.bettingDeadline), { addSuffix: true })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-emerald-400">
+                                                        <TrendingUp className="size-4" />
+                                                        {league.mode === "RANK" ? (
+                                                            <span>Odds: {prop.odds?.toString()}:1</span>
+                                                        ) : (
+                                                            <span>{prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)} pool</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </Link>
-                                    ))}
+                                            </Link>
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
