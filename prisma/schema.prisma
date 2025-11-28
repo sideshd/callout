@@ -84,6 +84,7 @@ model League {
   members         LeagueMember[]
   props           Prop[]
   activities      Activity[]
+  notifications   Notification[]
 }
 
 model LeagueMember {
@@ -174,13 +175,24 @@ model PropUpdate {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
+  leagueId  String?
+  type      NotificationType @default(SYSTEM)
   message   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league    League?  @relation(fields: [leagueId], references: [id])
+}
+
+enum NotificationType {
+  BET_WON
+  BET_LOST
+  PROP_ON_YOU
+  SYSTEM
 }
 
 enum LeagueStatus {

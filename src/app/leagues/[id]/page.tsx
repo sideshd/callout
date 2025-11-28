@@ -52,6 +52,15 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     const activeProps = league.props.filter(p => p.status === "LIVE" || p.status === "LOCKED")
     const pastProps = league.props.filter(p => p.status === "RESOLVED" || p.status === "CANCELED")
 
+    const notifications = await prisma.notification.findMany({
+        where: {
+            userId: session.user.id,
+            leagueId: id
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50
+    })
+
     return (
         <div className="min-h-screen bg-slate-950 text-white pb-20">
             {/* Header */}
@@ -116,6 +125,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                     activeProps={activeProps}
                     pastProps={pastProps}
                     activities={league.activities}
+                    notifications={notifications}
                     currentUserId={session.user.id}
                     isOwner={league.ownerId === session.user.id}
                 />

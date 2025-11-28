@@ -37,7 +37,10 @@ describe('createProp Action', () => {
         formData.append('bettingDeadline', new Date().toISOString())
 
             // Mock membership check
-            ; (prisma.leagueMember.findUnique as jest.Mock).mockResolvedValue({ id: 'member-1' })
+            ; (prisma.leagueMember.findUnique as jest.Mock).mockResolvedValue({
+                id: 'member-1',
+                league: { showActivityFeed: true }
+            })
 
             // Mock prop creation
             ; (prisma.prop.create as jest.Mock).mockResolvedValue({ id: 'prop-1' })

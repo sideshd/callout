@@ -4,7 +4,7 @@ import { createProp } from "@/app/actions"
 import { useState, useTransition } from "react"
 import { Loader2 } from "lucide-react"
 
-export function CreatePropForm({ leagueId, members, leagueMode }: { leagueId: string, members: any[], leagueMode: string }) {
+export function CreatePropForm({ leagueId, members, leagueMode, currentUserId }: { leagueId: string, members: any[], leagueMode: string, currentUserId: string }) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
@@ -118,11 +118,13 @@ export function CreatePropForm({ leagueId, members, leagueMode }: { leagueId: st
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none"
                     >
                         <option value="">None</option>
-                        {members.map((member) => (
-                            <option key={member.id} value={member.id}>
-                                {member.user.name}
-                            </option>
-                        ))}
+                        {members
+                            .filter(member => member.userId !== currentUserId)
+                            .map((member) => (
+                                <option key={member.id} value={member.id}>
+                                    {member.user.name}
+                                </option>
+                            ))}
                     </select>
                 </div>
 

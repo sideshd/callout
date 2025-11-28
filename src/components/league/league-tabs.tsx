@@ -5,22 +5,37 @@ import { League, LeagueMember, Prop, Activity, User } from "@prisma/client"
 import { formatDistanceToNow } from "date-fns"
 import { Trophy, TrendingUp, Settings, Users, Activity as ActivityIcon, MessageSquare, LogOut, Trash2, Edit2, Check, X } from "lucide-react"
 import Link from "next/link"
-import { updateLeagueSettings, adminAction, updateMemberCredits, leaveLeague, deleteLeague } from "@/app/actions"
+import { updateLeagueSettings, adminAction, updateMemberCredits, leaveLeague, deleteLeague, markNotificationRead, markAllNotificationsRead } from "@/app/actions"
+import { useRouter } from "next/navigation"
+import { useTransition } from "react"
+import { Bell } from "lucide-react"
 
 type LeagueTabsProps = {
     league: League & { members: (LeagueMember & { user: User })[] }
     activeProps: (Prop & { creator: { user: User }, bets: any[], targetPlayer?: { user: User } | null })[]
     pastProps: (Prop & { creator: { user: User }, bets: any[], targetPlayer?: { user: User } | null })[]
     activities: (Activity & { user: User })[]
+    notifications: any[] // Using any for now to avoid complex type issues with Prisma enums on client, but ideally should be typed
     currentUserId: string
     isOwner: boolean
 }
 
-export function LeagueTabs({ league, activeProps, pastProps, activities, currentUserId, isOwner }: LeagueTabsProps) {
-    const [activeTab, setActiveTab] = useState<"board" | "feed" | "admin" | "settings">("board")
+export function LeagueTabs({ league, activeProps, pastProps, activities, notifications, currentUserId, isOwner }: LeagueTabsProps) {
+    const router = useRouter()
+    const [isPending, startTransition] = useTransition()
+    const [activeTab, setActiveTab] = useState<"board" | "feed" | "notifications" | "admin" | "settings">("board")
     const [editingCredits, setEditingCredits] = useState<string | null>(null)
     const [filterType, setFilterType] = useState<"ALL" | "HIT" | "LINE">("ALL")
     const [filterBetStatus, setFilterBetStatus] = useState<"ALL" | "BET_ON" | "NOT_BET_ON">("ALL")
+
+    const unreadNotificationsCount = notifications.filter(n => !n.read).length
+
+    const handleAction = async (action: (formData: FormData) => Promise<void>, formData: FormData) => {
+        startTransition(async () => {
+            await action(formData)
+            router.refresh()
+        })
+    }
 
     const filteredProps = activeProps.filter(prop => {
         // Filter by Type
@@ -54,6 +69,20 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                 >
                     Activity Feed
                     {activeTab === "feed" && (
+                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab("notifications")}
+                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap flex items-center gap-2 ${activeTab === "notifications" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                >
+                    Notifications
+                    {unreadNotificationsCount > 0 && (
+                        <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                            {unreadNotificationsCount}
+                        </span>
+                    )}
+                    {activeTab === "notifications" && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
                     )}
                 </button>
@@ -133,7 +162,8 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                 <div className="space-y-4">
                                     {filteredProps.map((prop) => {
                                         const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
-                                        const isDeadlineClose = new Date(prop.bettingDeadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 // 24 hours
+                                        const isExpired = new Date(prop.bettingDeadline) < new Date()
+                                        const isDeadlineClose = !isExpired && new Date(prop.bettingDeadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 // 24 hours
 
                                         return (
                                             <Link
@@ -156,7 +186,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                                                     {prop.targetPlayer.user.name}
                                                                 </span>
                                                             )}
-                                                            {prop.status === "LOCKED" && (
+                                                            {(prop.status === "LOCKED" || isExpired) && (
                                                                 <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
                                                                     Locked
                                                                 </span>
@@ -178,8 +208,8 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                                         </div>
                                                         <span>{prop.creator.user.name}</span>
                                                         <span>•</span>
-                                                        <span className={isDeadlineClose ? "text-amber-400 font-bold" : ""}>
-                                                            Closes {formatDistanceToNow(new Date(prop.bettingDeadline), { addSuffix: true })}
+                                                        <span className={isDeadlineClose ? "text-amber-400 font-bold" : isExpired ? "text-slate-500 font-bold" : ""}>
+                                                            {isExpired ? "LOCKED" : `Closes ${formatDistanceToNow(new Date(prop.bettingDeadline), { addSuffix: true })}`}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-1 text-emerald-400">
@@ -305,6 +335,64 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                 </div>
             )}
 
+            {activeTab === "notifications" && (
+                <div className="max-w-2xl mx-auto">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold">Notifications</h2>
+                        {unreadNotificationsCount > 0 && (
+                            <button
+                                onClick={() => startTransition(async () => {
+                                    await markAllNotificationsRead(league.id)
+                                    router.refresh()
+                                })}
+                                className="text-xs text-emerald-400 hover:text-emerald-300"
+                                disabled={isPending}
+                            >
+                                Mark all read
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-y-4">
+                        {notifications.length === 0 ? (
+                            <div className="text-center py-12 text-slate-500">
+                                No notifications.
+                            </div>
+                        ) : (
+                            notifications.map((notification) => (
+                                <div
+                                    key={notification.id}
+                                    className={`bg-white/5 border ${notification.read ? 'border-white/5 opacity-60' : 'border-emerald-500/30'} rounded-xl p-4 flex items-start gap-4 transition-all hover:bg-white/10`}
+                                >
+                                    <div className={`size-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${notification.type === 'BET_WON' ? 'bg-emerald-500/20 text-emerald-400' : notification.type === 'BET_LOST' ? 'bg-red-500/20 text-red-400' : notification.type === 'PROP_ON_YOU' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                        <Bell className="size-4" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-white mb-1">{notification.message}</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-slate-500">
+                                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                            </p>
+                                            {!notification.read && (
+                                                <button
+                                                    onClick={() => startTransition(async () => {
+                                                        await markNotificationRead(notification.id, league.id)
+                                                        router.refresh()
+                                                    })}
+                                                    className="text-xs text-emerald-400 hover:text-emerald-300"
+                                                    disabled={isPending}
+                                                >
+                                                    Mark read
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+
             {activeTab === "admin" && isOwner && (
                 <div className="max-w-2xl mx-auto space-y-8">
                     {/* Settings */}
@@ -350,8 +438,17 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                 </label>
                             </div>
 
-                            <button type="submit" className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg hover:bg-slate-100 transition-colors">
-                                Save Settings
+                            <button
+                                type="submit"
+                                className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isPending}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    const form = e.currentTarget.closest('form')
+                                    if (form) handleAction(updateLeagueSettings, new FormData(form))
+                                }}
+                            >
+                                {isPending ? "Saving..." : "Save Settings"}
                             </button>
                         </form>
                     </div>
@@ -377,7 +474,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
 
                                             {editingCredits === member.userId ? (
                                                 <form action={async (formData) => {
-                                                    await updateMemberCredits(formData)
+                                                    await handleAction(updateMemberCredits, formData)
                                                     setEditingCredits(null)
                                                 }} className="flex items-center gap-2 mt-1">
                                                     <input type="hidden" name="leagueId" value={league.id} />
@@ -388,7 +485,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                                         defaultValue={member.credits}
                                                         className="w-20 bg-slate-800 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-400"
                                                     />
-                                                    <button type="submit" className="text-emerald-400 hover:text-emerald-300">
+                                                    <button type="submit" disabled={isPending} className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50">
                                                         <Check className="size-4" />
                                                     </button>
                                                     <button type="button" onClick={() => setEditingCredits(null)} className="text-red-400 hover:text-red-300">
@@ -398,14 +495,12 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <p className="text-xs text-slate-400">{member.credits} credits</p>
-                                                    {member.userId !== currentUserId && (
-                                                        <button
-                                                            onClick={() => setEditingCredits(member.userId)}
-                                                            className="text-slate-500 hover:text-white transition-colors"
-                                                        >
-                                                            <Edit2 className="size-3" />
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        onClick={() => setEditingCredits(member.userId)}
+                                                        className="text-slate-500 hover:text-white transition-colors"
+                                                    >
+                                                        <Edit2 className="size-3" />
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -413,12 +508,12 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, current
 
                                     {member.userId !== currentUserId && (
                                         <div className="flex items-center gap-2">
-                                            <form action={adminAction}>
+                                            <form action={(formData) => handleAction(adminAction, formData)}>
                                                 <input type="hidden" name="leagueId" value={league.id} />
                                                 <input type="hidden" name="targetUserId" value={member.userId} />
                                                 <input type="hidden" name="action" value="KICK" />
-                                                <button type="submit" className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 transition-colors">
-                                                    Kick
+                                                <button type="submit" disabled={isPending} className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 transition-colors disabled:opacity-50">
+                                                    {isPending ? "..." : "Kick"}
                                                 </button>
                                             </form>
                                         </div>

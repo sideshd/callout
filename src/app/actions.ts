@@ -143,7 +143,7 @@ export async function createProp(formData: FormData) {
 
         if (!membership) return { error: "Not a member of this league" }
 
-        await prisma.prop.create({
+        const prop = await prisma.prop.create({
             data: {
                 leagueId,
                 creatorId: membership.id,
@@ -167,6 +167,26 @@ export async function createProp(formData: FormData) {
                     content: `created a new prop: "${question}"`
                 }
             })
+        }
+
+        // Notify target player if prop is about them
+        if (targetPlayerId) {
+            const targetMember = await prisma.leagueMember.findUnique({
+                where: { id: targetPlayerId },
+                include: { user: true }
+            })
+
+            if (targetMember && targetMember.userId !== session.user.id) {
+                await prisma.notification.create({
+                    data: {
+                        userId: targetMember.userId,
+                        leagueId,
+                        type: "PROP_ON_YOU",
+                        message: `${session.user.name} created a prop about you: "${question}"`,
+                        link: `/props/${prop.id}`
+                    }
+                })
+            }
         }
     } catch (error) {
         console.error(error)
@@ -248,6 +268,10 @@ export async function placeBet(formData: FormData) {
                 }
             })
         }
+
+        // Notification for prop creator if someone bets on their prop (optional, but requested "bets made about you" - usually means props about you)
+        // User correction: REMOVE notification when someone bets on a prop about you.
+        // Keeping code clean by removing the block.
 
         revalidatePath(`/props/${propId}`)
     } catch (error) {
@@ -345,6 +369,17 @@ export async function resolveProp(formData: FormData) {
                         where: { id: member.id },
                         data: { credits: { increment: payout } }
                     }))
+
+                    // Notify winner
+                    updates.push(prisma.notification.create({
+                        data: {
+                            userId: bet.userId,
+                            leagueId: prop.leagueId,
+                            type: "BET_WON",
+                            message: `You won ${payout} credits on "${prop.question}"!`,
+                            link: `/props/${propId}`
+                        }
+                    }))
                 }
             }
         } else {
@@ -396,6 +431,26 @@ export async function resolveProp(formData: FormData) {
                     content: `resolved "${prop.question}" (Winner: ${winningSide})`
                 }
             })
+        }
+
+        // Notify target player if prop was about them
+        if (prop.targetPlayerId) {
+            const targetMember = await prisma.leagueMember.findUnique({
+                where: { id: prop.targetPlayerId },
+                include: { user: true }
+            })
+
+            if (targetMember) {
+                updates.push(prisma.notification.create({
+                    data: {
+                        userId: targetMember.userId,
+                        leagueId: prop.leagueId,
+                        type: "SYSTEM", // Using SYSTEM as generic type for now, or could add PROP_RESOLVED
+                        message: `The prop "${prop.question}" about you was resolved: ${winningSide}`,
+                        link: `/props/${propId}`
+                    }
+                }))
+            }
         }
 
         await prisma.$transaction(updates)
@@ -714,6 +769,57 @@ export async function updateMemberCredits(formData: FormData) {
         })
 
         revalidatePath(`/leagues/${leagueId}`)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function markNotificationRead(notificationId: string, leagueId?: string) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    try {
+        const notification = await prisma.notification.findUnique({
+            where: { id: notificationId }
+        })
+
+        if (!notification || notification.userId !== session.user.id) return
+
+        await prisma.notification.update({
+            where: { id: notificationId },
+            data: { read: true }
+        })
+
+        if (leagueId) {
+            revalidatePath(`/leagues/${leagueId}`)
+        }
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function markAllNotificationsRead(leagueId?: string) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return
+
+    try {
+        const whereClause: any = {
+            userId: session.user.id,
+            read: false
+        }
+
+        if (leagueId) {
+            whereClause.leagueId = leagueId
+        }
+
+        await prisma.notification.updateMany({
+            where: whereClause,
+            data: { read: true }
+        })
+
+        if (leagueId) {
+            revalidatePath(`/leagues/${leagueId}`)
+        }
     } catch (error) {
         console.error(error)
     }
