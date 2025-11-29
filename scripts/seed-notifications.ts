@@ -101,16 +101,19 @@ async function main() {
     // If I want to confirm logic works, I need to trigger the action.
     // I'll manually create it here to verify UI.
 
+    // Since we changed BET_ON_YOU to PROP_ON_YOU, this notification should represent
+    // when a prop is created about Bob, not when a bet is placed.
+    // Let me create a PROP_ON_YOU notification instead.
     await prisma.notification.create({
         data: {
             userId: bob.id,
             leagueId: league.id,
-            type: "BET_ON_YOU",
-            message: `${charlie.name} bet 100 on "${propAboutBob.question}" (YES)`,
+            type: "PROP_ON_YOU",
+            message: `${alice.name} created a prop about you: "${propAboutBob.question}"`,
             link: `/props/${propAboutBob.id}`
         }
     })
-    console.log("Created 'BET_ON_YOU' notification for Bob")
+    console.log("Created 'PROP_ON_YOU' notification for Bob")
 
     // 4. Scenario 2: Bet Won
     // Alice creates prop
