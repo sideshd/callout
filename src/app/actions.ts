@@ -171,22 +171,42 @@ export async function createProp(formData: FormData) {
 
         // Notify target player if prop is about them
         if (targetPlayerId) {
+            console.log("[NOTIFICATION DEBUG] targetPlayerId:", targetPlayerId)
+
             const targetMember = await prisma.leagueMember.findUnique({
                 where: { id: targetPlayerId },
                 include: { user: true }
             })
 
+            console.log("[NOTIFICATION DEBUG] targetMember:", targetMember ? {
+                id: targetMember.id,
+                userId: targetMember.userId,
+                userName: targetMember.user.name
+            } : "null")
+            console.log("[NOTIFICATION DEBUG] session.user.id:", session.user.id)
+
             if (targetMember && targetMember.userId !== session.user.id) {
-                await prisma.notification.create({
-                    data: {
-                        userId: targetMember.userId,
-                        leagueId,
-                        type: "PROP_ON_YOU",
-                        message: `${session.user.name} created a prop about you: "${question}"`,
-                        link: `/props/${prop.id}`
-                    }
-                })
+                console.log("[NOTIFICATION DEBUG] Creating notification for user:", targetMember.userId)
+                try {
+                    const notification = await prisma.notification.create({
+                        data: {
+                            userId: targetMember.userId,
+                            leagueId,
+                            type: "PROP_ON_YOU",
+                            message: `${session.user.name} created a prop about you: "${question}"`,
+                            link: `/props/${prop.id}`
+                        }
+                    })
+                    console.log("[NOTIFICATION DEBUG] Notification created successfully:", notification.id)
+                } catch (error) {
+                    console.error("[NOTIFICATION ERROR] Failed to create notification:", error)
+                    // Don't throw - allow prop creation to succeed even if notification fails
+                }
+            } else {
+                console.log("[NOTIFICATION DEBUG] Skipping notification - either targetMember is null or is self")
             }
+        } else {
+            console.log("[NOTIFICATION DEBUG] No targetPlayerId provided")
         }
     } catch (error) {
         console.error(error)

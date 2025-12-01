@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { LeagueTabs } from "@/components/league/league-tabs"
 import { Logo } from "@/components/ui/logo"
 import { ArrowLeft, Copy, Share2, Plus } from "lucide-react"
+import { CopyInviteCode } from "@/components/league/copy-invite-code"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
@@ -107,15 +108,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                                     New Prop
                                 </Link>
                             )}
-                            <div className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3">
-                                <div className="text-xs">
-                                    <span className="text-slate-500 block">Invite Code</span>
-                                    <span className="font-mono font-bold text-white tracking-wider">{league.inviteCode}</span>
-                                </div>
-                                <button className="p-1.5 hover:bg-white/10 rounded-md transition-colors text-slate-400 hover:text-white">
-                                    <Copy className="size-4" />
-                                </button>
-                            </div>
+                            <CopyInviteCode inviteCode={league.inviteCode} />
                         </div>
                     </div>
                 </div>
