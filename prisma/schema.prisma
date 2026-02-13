@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ... existing generator and datasource ...
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -17,11 +19,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  
+  accounts Account[]
+  sessions Session[]
+
   // App specific
-  ownedLeagues  League[]  @relation("LeagueOwner")
+  ownedLeagues  League[]       @relation("LeagueOwner")
   memberships   LeagueMember[]
   bets          Bet[]
   notifications Notification[]
@@ -31,18 +33,18 @@ model User {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -66,78 +68,109 @@ model VerificationToken {
 }
 
 model League {
-  id              String       @id @default(cuid())
-  name            String
-  description     String?
-  inviteCode      String       @unique @default(cuid())
-  startingCredits Int          @default(1000)
-  status          LeagueStatus @default(ACTIVE)
-  mode            LeagueMode   @default(POOL)
-  allowPropCreation Boolean    @default(true)
-  showActivityFeed  Boolean    @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  
-  ownerId         String
-  owner           User         @relation("LeagueOwner", fields: [ownerId], references: [id])
-  
-  members         LeagueMember[]
-  props           Prop[]
-  activities      Activity[]
-  notifications   Notification[]
+  id                String       @id @default(cuid())
+  name              String
+  description       String?
+  inviteCode        String       @unique @default(cuid())
+  startingCredits   Int          @default(1000)
+  status            LeagueStatus @default(ACTIVE)
+  mode              LeagueMode   @default(POOL)
+  allowPropCreation Boolean      @default(true)
+  showActivityFeed  Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  ownerId String
+  owner   User   @relation("LeagueOwner", fields: [ownerId], references: [id])
+
+  members       LeagueMember[]
+  props         Prop[]
+  activities    Activity[]
+  notifications Notification[]
 }
 
 model LeagueMember {
-  id        String   @id @default(cuid())
-  leagueId  String
-  userId    String
-  credits   Int      @default(1000)
-  joinedAt  DateTime @default(now())
-  
-  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdProps Prop[] @relation("PropCreator")
+  id       String   @id @default(cuid())
+  leagueId String
+  userId   String
+  credits  Int      @default(1000)
+  joinedAt DateTime @default(now())
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdProps  Prop[] @relation("PropCreator")
   targetedProps Prop[] @relation("PropTarget")
 
   @@unique([leagueId, userId])
 }
 
+// [MODIFIED] Prop model for Prediction Market
 model Prop {
-  id                 String     @id @default(cuid())
-  leagueId           String
-  creatorId          String
-  type               PropType
-  question           String
-  wagerAmount        Int        @default(0)
-  odds               Decimal?   @db.Decimal(10, 2)
+  id         String     @id @default(cuid())
+  leagueId   String
+  creatorId  String
+  // [NEW] Market Type
+  marketType MarketType @default(BINARY) // BINARY or MULTIPLE_CHOICE (future exp.)
+
+  question String
+
+  // [NEW] Liquidity / Volume tracking
+  liquidity Float @default(0) // Total amount bet on this prop
+
+  // [REMOVED] odds, wagerAmount (These are now dynamic or per-bet)
+  // [REMOVED] type (PropType: HIT/LINE are legacy)
+
   targetPlayerId     String?
   bettingDeadline    DateTime
   resolutionDeadline DateTime?
-  winningSide        String?
-  status             PropStatus @default(LIVE)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  winningChoiceId    String? // [NEW] Links to Choice logic
 
-  league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  creator       LeagueMember   @relation("PropCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  targetPlayer  LeagueMember?  @relation("PropTarget", fields: [targetPlayerId], references: [id])
-  
-  bets      Bet[]
-  updates   PropUpdate[]
-  comments  Comment[]
+  status    PropStatus @default(LIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  league       League        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  creator      LeagueMember  @relation("PropCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  targetPlayer LeagueMember? @relation("PropTarget", fields: [targetPlayerId], references: [id])
+
+  choices  Choice[]
+  bets     Bet[]
+  updates  PropUpdate[]
+  comments Comment[]
 }
 
+// [NEW] Choice Model
+model Choice {
+  id     String @id @default(cuid())
+  propId String
+  text   String // e.g. "Yes", "No", "Trump", "Biden"
+
+  // Dynamic Pricing State
+  probability Float @default(0.5) // 0.0 to 1.0
+  poolAmount  Float @default(0) // Total credits bet on this choice
+
+  prop Prop  @relation(fields: [propId], references: [id], onDelete: Cascade)
+  bets Bet[]
+}
+
+// [MODIFIED] Bet Model
 model Bet {
-  id        String   @id @default(cuid())
-  propId    String
-  userId    String
-  amount    Int
-  side      String   // "YES", "NO", "OVER", "UNDER"
+  id     String @id @default(cuid())
+  propId String
+  userId String
+
+  // [MODIFIED] Link to Choice instead of hardcoded strings
+  choiceId String
+  choice   Choice @relation(fields: [choiceId], references: [id])
+
+  amount Int // Amount wagered (credits)
+  shares Float @default(0) // [NEW] Number of shares bought (for parimutuel/market logic)
+
   createdAt DateTime @default(now())
-  
-  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  prop Prop @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Comment {
@@ -147,8 +180,8 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
 
-  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prop Prop @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Activity {
@@ -159,8 +192,8 @@ model Activity {
   content   String
   createdAt DateTime     @default(now())
 
-  league    League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PropUpdate {
@@ -169,9 +202,9 @@ model PropUpdate {
   userId    String
   content   String
   createdAt DateTime @default(now())
-  
-  prop      Prop     @relation(fields: [propId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  prop Prop @relation(fields: [propId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
@@ -183,9 +216,9 @@ model Notification {
   link      String?
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  league    League?  @relation(fields: [leagueId], references: [id])
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league League? @relation(fields: [leagueId], references: [id])
 }
 
 enum NotificationType {
@@ -202,13 +235,14 @@ enum LeagueStatus {
 }
 
 enum LeagueMode {
-  POOL  // Fixed credits, zero-sum (poker-style)
-  RANK  // Odds-based, unlimited credits (sportsbook-style)
+  POOL // Fixed credits, zero-sum (poker-style)
+  RANK // Odds-based, unlimited credits (sportsbook-style)
 }
 
-enum PropType {
-  HIT
-  LINE
+// [NEW] Market Type
+enum MarketType {
+  BINARY // Two outcomes (Yes/No)
+  MULTIPLE_CHOICE // >2 outcomes
 }
 
 enum PropStatus {

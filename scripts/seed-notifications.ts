@@ -13,7 +13,7 @@ async function main() {
         create: {
             name: "Alice Admin",
             email: "alice@example.com",
-            password: "password123" // In real app should be hashed, but for seed/dev maybe ok if auth allows or we just use IDs
+            password: "password123"
         }
     })
 
@@ -62,54 +62,46 @@ async function main() {
     const bobMember = league.members.find(m => m.userId === bob.id)!
     const charlieMember = league.members.find(m => m.userId === charlie.id)!
 
-    // 3. Scenario 1: Bet on You
+    // 3. Scenario 1: Prop about You
     // Alice creates prop about Bob
     const propAboutBob = await prisma.prop.create({
         data: {
             leagueId: league.id,
             creatorId: aliceMember.id,
             question: "Will Bob win the lottery?",
-            type: "HIT",
-            wagerAmount: 100,
+            marketType: "MULTIPLE_CHOICE",
             targetPlayerId: bobMember.id,
             bettingDeadline: new Date(Date.now() + 86400000), // Tomorrow
-            status: "LIVE"
-        }
+            status: "LIVE",
+            choices: {
+                create: [
+                    { text: "Yes", probability: 0.5 },
+                    { text: "No", probability: 0.5 }
+                ]
+            }
+        },
+        include: { choices: true }
     })
 
-    // Charlie bets on it
-    // This should trigger "BET_ON_YOU" for Bob
+    // Charlie bets on "Yes"
+    const yesChoice = propAboutBob.choices.find(c => c.text === "Yes")!
+
     await prisma.bet.create({
         data: {
             propId: propAboutBob.id,
             userId: charlie.id,
             amount: 100,
-            side: "YES"
+            choiceId: yesChoice.id
         }
     })
 
-    // Manually trigger notification logic? 
-    // The server actions contain the logic, but we are running a script.
-    // We need to simulate the logic here to verify it works OR call the action if possible (hard in script).
-    // I will replicate the logic here to "seed" the notification, proving the data model supports it, 
-    // BUT to test the *application logic*, I should ideally call the action.
-    // However, calling server actions from a script is tricky due to headers/cookies.
-    // Instead, I will manually create the notification to ensure the UI can display it,
-    // and rely on my code review of `actions.ts` for the logic correctness.
-    // Wait, the user wants me to "fix that" (notifications not showing).
-    // If I just seed it manually, I confirm UI works.
-    // If I want to confirm logic works, I need to trigger the action.
-    // I'll manually create it here to verify UI.
-
-    // Since we changed BET_ON_YOU to PROP_ON_YOU, this notification should represent
-    // when a prop is created about Bob, not when a bet is placed.
-    // Let me create a PROP_ON_YOU notification instead.
+    // Create notification manually to verify UI
     await prisma.notification.create({
         data: {
             userId: bob.id,
             leagueId: league.id,
             type: "PROP_ON_YOU",
-            message: `${alice.name} created a prop about you: "${propAboutBob.question}"`,
+            message: `${alice.name} created a market about you: "${propAboutBob.question}"`,
             link: `/props/${propAboutBob.id}`
         }
     })
@@ -122,28 +114,38 @@ async function main() {
             leagueId: league.id,
             creatorId: aliceMember.id,
             question: "Will it rain?",
-            type: "HIT",
-            wagerAmount: 50,
+            marketType: "MULTIPLE_CHOICE",
             bettingDeadline: new Date(Date.now() - 10000), // Already passed
-            status: "LIVE"
-        }
+            status: "RESOLVED",
+            choices: {
+                create: [
+                    { text: "Yes", probability: 0.8 },
+                    { text: "No", probability: 0.2 }
+                ]
+            }
+        },
+        include: { choices: true }
     })
 
-    // Bob bets YES
+    const winChoice = propWin.choices.find(c => c.text === "Yes")!
+
+    // Bob bets YES (simulating past bet)
     await prisma.bet.create({
         data: {
             propId: propWin.id,
             userId: bob.id,
             amount: 50,
-            side: "YES"
+            choiceId: winChoice.id
         }
     })
 
-    // Alice resolves as YES
-    // Simulate resolution logic
+    // Set winning choice
     await prisma.prop.update({
         where: { id: propWin.id },
-        data: { status: "RESOLVED", winningSide: "YES", resolutionDeadline: new Date() }
+        data: {
+            winningChoiceId: winChoice.id,
+            resolutionDeadline: new Date()
+        }
     })
 
     // Create notification for Bob

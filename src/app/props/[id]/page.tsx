@@ -8,6 +8,7 @@ import { ArrowLeft, Trophy, TrendingUp, AlertCircle, Clock, CheckCircle2, XCircl
 import { formatDistanceToNow, format } from "date-fns"
 import { PlaceBetForm } from "@/components/forms/place-bet-form"
 import { AdminControls } from "@/components/forms/admin-controls"
+import { PropProbabilityChart } from "@/components/charts/prop-probability-chart"
 
 export const dynamic = "force-dynamic"
 
@@ -20,9 +21,12 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
         where: { id },
         include: {
             league: true,
+            choices: {
+                orderBy: { probability: 'desc' }
+            },
             creator: { include: { user: true } },
             targetPlayer: { include: { user: true } },
-            bets: { include: { user: true } },
+            bets: { include: { user: true, choice: true } },
             comments: {
                 include: { user: true },
                 orderBy: { createdAt: "desc" }
@@ -45,15 +49,10 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
 
     const isAdmin = prop.league.ownerId === session.user.id
     const isLive = prop.status === "LIVE" && new Date() < prop.bettingDeadline
-    const userBet = prop.bets.find((b: any) => b.userId === session.user.id)
 
-    const totalPool = prop.bets.reduce((sum: number, b: any) => sum + b.amount, 0)
-
-    // Group bets by side
-    const betsBySide: Record<string, number> = {}
-    prop.bets.forEach((b: any) => {
-        betsBySide[b.side] = (betsBySide[b.side] || 0) + b.amount
-    })
+    // User bets
+    const userBets = prop.bets.filter((b: any) => b.userId === session.user.id)
+    const totalPool = prop.liquidity || prop.bets.reduce((sum: number, b: any) => sum + b.amount, 0)
 
     return (
         <div className="min-h-screen bg-slate-950 text-white flex justify-center p-6">
@@ -68,7 +67,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2 text-sm text-slate-400">
                                 <span className="font-bold text-white">{prop.creator.user.name}</span>
-                                <span>asks</span>
+                                <span>created prop</span>
                             </div>
                             <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.status === "LIVE" ? "bg-green-500/10 text-green-400" :
                                 prop.status === "LOCKED" ? "bg-amber-500/10 text-amber-400" :
@@ -80,8 +79,8 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 mb-4">
-                            <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
-                                {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
+                            <span className="bg-purple-500/10 text-purple-400 text-xs font-bold px-2 py-1 rounded uppercase">
+                                Prediction Prop
                             </span>
                             {prop.targetPlayer && (
                                 <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
@@ -105,32 +104,66 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                             </div>
                             <div className="flex items-center gap-2 text-emerald-400">
                                 <TrendingUp className="size-4" />
-                                {prop.league.mode === "RANK" ? (
-                                    <span>Odds: {prop.odds?.toString()}:1</span>
-                                ) : (
-                                    <span>{totalPool} credits pool</span>
-                                )}
+                                <span>{totalPool} credits volume</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Probabilities Chart */}
+                    <div className="p-8 bg-slate-900/30 border-b border-white/10">
+                        <h3 className="text-sm font-bold text-slate-400 mb-6">Probability Over Time</h3>
+                        <PropProbabilityChart
+                            choices={prop.choices}
+                            bets={prop.bets}
+                            createdAt={prop.createdAt}
+                        />
+
+                        {/* Current Probabilities */}
+                        <div className="mt-8 pt-6 border-t border-white/5">
+                            <h4 className="text-xs font-bold text-slate-500 mb-3">Current Odds</h4>
+                            <div className="space-y-3">
+                                {prop.choices.map((choice: any) => (
+                                    <div key={choice.id} className="relative">
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="font-medium text-white">{choice.text}</span>
+                                            <span className="font-bold text-emerald-400">{(choice.probability * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-emerald-500"
+                                                style={{ width: `${choice.probability * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
 
                     {/* Betting Section */}
                     <div className="p-8 bg-slate-900/50">
-                        {userBet ? (
-                            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
-                                <p className="text-emerald-400 font-medium mb-1">You bet {userBet.amount} credits on</p>
-                                <p className="text-2xl font-bold text-white">{userBet.side}</p>
+                        {userBets.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="text-sm font-bold text-slate-400 mb-4">Your Positions</h3>
+                                <div className="space-y-2">
+                                    {userBets.map((bet: any) => (
+                                        <div key={bet.id} className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex justify-between items-center">
+                                            <div>
+                                                <span className="text-emerald-400 font-bold block">{bet.choice.text}</span>
+                                                <span className="text-xs text-slate-400">{formatDistanceToNow(bet.createdAt, { addSuffix: true })}</span>
+                                            </div>
+                                            <span className="text-xl font-bold text-white">{bet.amount} cr</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        ) : isLive ? (
+                        )}
+
+                        {isLive ? (
                             <PlaceBetForm
                                 propId={prop.id}
-                                propType={prop.type}
-                                betsBySide={betsBySide}
+                                choices={prop.choices}
                                 maxCredits={membership.credits}
-                                wagerAmount={prop.wagerAmount}
-                                leagueMode={prop.league.mode}
-                                minBet={prop.wagerAmount}
-                                odds={prop.odds ? Number(prop.odds) : undefined}
                             />
                         ) : (
                             <div className="text-center py-4">
@@ -142,7 +175,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
 
                     {/* Admin Controls */}
                     {isAdmin && prop.status !== "RESOLVED" && prop.status !== "CANCELED" && (
-                        <AdminControls propId={prop.id} propType={prop.type} />
+                        <AdminControls propId={prop.id} choices={prop.choices} />
                     )}
                 </div>
 
@@ -181,7 +214,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                         {prop.comments.length === 0 ? (
                             <p className="text-center text-slate-500 py-8">No comments yet. Be the first!</p>
                         ) : (
-                            prop.comments.map((comment) => (
+                            prop.comments.map((comment: any) => (
                                 <div key={comment.id} className="flex gap-4 group">
                                     <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold shrink-0">
                                         {comment.user.name?.[0] || "?"}

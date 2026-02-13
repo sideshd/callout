@@ -12,10 +12,11 @@ import { Bell } from "lucide-react"
 
 type LeagueTabsProps = {
     league: League & { members: (LeagueMember & { user: User })[] }
-    activeProps: (Prop & { creator: { user: User }, bets: any[], targetPlayer?: { user: User } | null })[]
-    pastProps: (Prop & { creator: { user: User }, bets: any[], targetPlayer?: { user: User } | null })[]
+    // Updated Prop type to include choices
+    activeProps: (Prop & { creator: { user: User }, bets: any[], choices: any[], targetPlayer?: { user: User } | null })[]
+    pastProps: (Prop & { creator: { user: User }, bets: any[], choices: any[], targetPlayer?: { user: User } | null })[]
     activities: (Activity & { user: User })[]
-    notifications: any[] // Using any for now to avoid complex type issues with Prisma enums on client, but ideally should be typed
+    notifications: any[]
     currentUserId: string
     isOwner: boolean
 }
@@ -25,7 +26,6 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
     const [isPending, startTransition] = useTransition()
     const [activeTab, setActiveTab] = useState<"board" | "feed" | "notifications" | "admin" | "settings">("board")
     const [editingCredits, setEditingCredits] = useState<string | null>(null)
-    const [filterType, setFilterType] = useState<"ALL" | "HIT" | "LINE">("ALL")
     const [filterBetStatus, setFilterBetStatus] = useState<"ALL" | "BET_ON" | "NOT_BET_ON">("ALL")
 
     const unreadNotificationsCount = notifications.filter(n => !n.read).length
@@ -38,10 +38,6 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
     }
 
     const filteredProps = activeProps.filter(prop => {
-        // Filter by Type
-        if (filterType === "HIT" && prop.type !== "HIT") return false
-        if (filterType === "LINE" && prop.type !== "LINE") return false
-
         // Filter by Bet Status
         const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
         if (filterBetStatus === "BET_ON" && !hasBet) return false
@@ -124,21 +120,12 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                 {/* Filters */}
                                 <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
                                     <select
-                                        value={filterType}
-                                        onChange={(e) => setFilterType(e.target.value as any)}
-                                        className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
-                                    >
-                                        <option value="ALL">All Types</option>
-                                        <option value="HIT">Hit/Miss</option>
-                                        <option value="LINE">Over/Under</option>
-                                    </select>
-                                    <select
                                         value={filterBetStatus}
                                         onChange={(e) => setFilterBetStatus(e.target.value as any)}
                                         className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
                                     >
                                         <option value="ALL">All Props</option>
-                                        <option value="BET_ON">My Bets</option>
+                                        <option value="BET_ON">My Positions</option>
                                         <option value="NOT_BET_ON">New Props</option>
                                     </select>
                                 </div>
@@ -146,7 +133,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
 
                             {filteredProps.length === 0 ? (
                                 <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl bg-white/5">
-                                    <p className="text-slate-400 mb-4">No props match your filters.</p>
+                                    <p className="text-slate-400 mb-4">No active props found.</p>
                                     {league.allowPropCreation || isOwner ? (
                                         <Link
                                             href={`/leagues/${league.id}/props/create`}
@@ -164,6 +151,8 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                         const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
                                         const isExpired = new Date(prop.bettingDeadline) < new Date()
                                         const isDeadlineClose = !isExpired && new Date(prop.bettingDeadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 // 24 hours
+                                        const totalLiquidity = prop.liquidity || prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)
+                                        const topChoice = prop.choices?.sort((a, b) => b.probability - a.probability)[0]
 
                                         return (
                                             <Link
@@ -172,13 +161,21 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                                 className="block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:border-white/20 group"
                                             >
                                                 <div className="flex items-start justify-between gap-4 mb-4">
-                                                    <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors">
-                                                        {prop.question}
-                                                    </h3>
+                                                    <div>
+                                                        <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors mb-1">
+                                                            {prop.question}
+                                                        </h3>
+                                                        {topChoice && (
+                                                            <div className="text-xs text-slate-400">
+                                                                Top outcome: <span className="text-white font-bold">{topChoice.text}</span> ({(topChoice.probability * 100).toFixed(0)}%)
+                                                            </div>
+                                                        )}
+                                                    </div>
+
                                                     <div className="flex flex-col items-end gap-2">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.type === "HIT" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"}`}>
-                                                                {prop.type === "HIT" ? "HIT/MISS" : "OVER/UNDER"}
+                                                            <span className="bg-purple-500/10 text-purple-400 text-xs font-bold px-2 py-1 rounded uppercase">
+                                                                Prop
                                                             </span>
                                                             {prop.targetPlayer && (
                                                                 <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
@@ -195,7 +192,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                                         {hasBet && (
                                                             <span className="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
                                                                 <Check className="size-3" />
-                                                                Bet Placed
+                                                                Position Held
                                                             </span>
                                                         )}
                                                     </div>
@@ -214,11 +211,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                                     </div>
                                                     <div className="flex items-center gap-1 text-emerald-400">
                                                         <TrendingUp className="size-4" />
-                                                        {league.mode === "RANK" ? (
-                                                            <span>Odds: {prop.odds?.toString()}:1</span>
-                                                        ) : (
-                                                            <span>{prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)} pool</span>
-                                                        )}
+                                                        <span>{totalLiquidity} vol</span>
                                                     </div>
                                                 </div>
                                             </Link>

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { hash } from "bcryptjs"
-import { PropType } from "@prisma/client"
+// removed PropType
 
 export async function createLeague(formData: FormData) {
     const session = await getServerSession(authOptions)
@@ -31,7 +31,7 @@ export async function createLeague(formData: FormData) {
                 members: {
                     create: {
                         userId: session.user.id,
-                        credits: startingCredits // Owner gets starting credits too
+                        credits: startingCredits
                     }
                 }
             }
@@ -107,30 +107,33 @@ export async function createProp(formData: FormData) {
 
     const leagueId = formData.get("leagueId") as string
     const question = formData.get("question") as string
-    const typeInput = formData.get("type") as string
+    const marketType = (formData.get("marketType") as "BINARY" | "MULTIPLE_CHOICE") || "BINARY"
     const targetPlayerId = formData.get("targetPlayerId") as string
-
-    // Handle both POOL mode (wagerAmount) and RANK mode (minBet)
-    const wagerAmountStr = formData.get("wagerAmount") as string
-    const minBetStr = formData.get("minBet") as string
-    const wagerAmount = parseInt(wagerAmountStr || minBetStr || "0") || 0
-
-    const oddsStr = formData.get("odds") as string
-    const odds = oddsStr ? parseFloat(oddsStr) : null
     const bettingDeadlineStr = formData.get("bettingDeadline") as string
 
-    if (!leagueId || !question || !typeInput || !bettingDeadlineStr) {
+    if (!leagueId || !question || !bettingDeadlineStr) {
         return { error: "Missing required fields" }
+    }
+
+    let choices: string[] = []
+
+    if (marketType === "BINARY") {
+        choices = ["Yes", "No"]
+    } else {
+        // [NEW] Choices parsed from multiple input fields
+        const rawChoices = formData.getAll("choices")
+        choices = rawChoices.map(c => c.toString().trim()).filter(c => c.length > 0)
+    }
+
+    if (choices.length < 2) {
+        return { error: "At least 2 choices are required" }
     }
 
     if (targetPlayerId === session.user.id) {
         return { error: "You cannot create a prop about yourself" }
     }
 
-    const type = PropType[typeInput as keyof typeof PropType]
-
     try {
-        // Verify membership
         const membership = await prisma.leagueMember.findUnique({
             where: {
                 leagueId_userId: {
@@ -142,22 +145,33 @@ export async function createProp(formData: FormData) {
         })
 
         if (!membership) return { error: "Not a member of this league" }
+        if (!membership.league.allowPropCreation && membership.league.ownerId !== session.user.id) {
+            return { error: "Prop creation is disabled for members" }
+        }
+
+        // Initial probability = 1 / N
+        const initialProb = 1.0 / choices.length
 
         const prop = await prisma.prop.create({
             data: {
                 leagueId,
                 creatorId: membership.id,
                 question,
-                type,
-                wagerAmount,
-                odds: odds,
+                marketType,
+                liquidity: 0,
                 targetPlayerId: targetPlayerId || null,
                 bettingDeadline: new Date(bettingDeadlineStr),
-                status: "LIVE"
+                status: "LIVE",
+                choices: {
+                    create: choices.map(text => ({
+                        text,
+                        probability: initialProb,
+                        poolAmount: 0
+                    }))
+                }
             }
         })
 
-        // Create activity
         if (membership.league.showActivityFeed) {
             await prisma.activity.create({
                 data: {
@@ -169,26 +183,15 @@ export async function createProp(formData: FormData) {
             })
         }
 
-        // Notify target player if prop is about them
         if (targetPlayerId) {
-            console.log("[NOTIFICATION DEBUG] targetPlayerId:", targetPlayerId)
-
             const targetMember = await prisma.leagueMember.findUnique({
                 where: { id: targetPlayerId },
                 include: { user: true }
             })
 
-            console.log("[NOTIFICATION DEBUG] targetMember:", targetMember ? {
-                id: targetMember.id,
-                userId: targetMember.userId,
-                userName: targetMember.user.name
-            } : "null")
-            console.log("[NOTIFICATION DEBUG] session.user.id:", session.user.id)
-
             if (targetMember && targetMember.userId !== session.user.id) {
-                console.log("[NOTIFICATION DEBUG] Creating notification for user:", targetMember.userId)
                 try {
-                    const notification = await prisma.notification.create({
+                    await prisma.notification.create({
                         data: {
                             userId: targetMember.userId,
                             leagueId,
@@ -197,16 +200,10 @@ export async function createProp(formData: FormData) {
                             link: `/props/${prop.id}`
                         }
                     })
-                    console.log("[NOTIFICATION DEBUG] Notification created successfully:", notification.id)
                 } catch (error) {
-                    console.error("[NOTIFICATION ERROR] Failed to create notification:", error)
-                    // Don't throw - allow prop creation to succeed even if notification fails
+                    console.error("Failed to create notification:", error)
                 }
-            } else {
-                console.log("[NOTIFICATION DEBUG] Skipping notification - either targetMember is null or is self")
             }
-        } else {
-            console.log("[NOTIFICATION DEBUG] No targetPlayerId provided")
         }
     } catch (error) {
         console.error(error)
@@ -222,23 +219,25 @@ export async function placeBet(formData: FormData) {
     if (!session?.user) return { error: "Not authenticated" }
 
     const propId = formData.get("propId") as string
-    const side = formData.get("side") as string
+    const choiceId = formData.get("choiceId") as string
     const amountStr = formData.get("amount") as string
     const amount = amountStr ? parseInt(amountStr) : 0
 
-    if (!propId || !side) return { error: "Missing required fields" }
+    if (!propId || !choiceId || amount <= 0) return { error: "Invalid bet amount" }
 
     try {
         const prop = await prisma.prop.findUnique({
             where: { id: propId },
-            include: { league: true }
+            include: {
+                league: true,
+                choices: true
+            }
         })
 
         if (!prop) return { error: "Prop not found" }
         if (prop.status !== "LIVE") return { error: "Prop is not live" }
         if (new Date() > prop.bettingDeadline) return { error: "Betting closed" }
 
-        // Check credits
         const membership = await prisma.leagueMember.findUnique({
             where: {
                 leagueId_userId: {
@@ -249,49 +248,73 @@ export async function placeBet(formData: FormData) {
         })
 
         if (!membership) return { error: "Not a member" }
+        if (membership.credits < amount) return { error: "Insufficient credits" }
 
-        // Determine wager amount
-        let wagerAmount = prop.wagerAmount
-        if (prop.league.mode === "RANK") {
-            if (!amount || amount < prop.wagerAmount) {
-                return { error: `Minimum bet is ${prop.wagerAmount}` }
-            }
-            wagerAmount = amount
-        }
+        // Parimutuel logic: update pools and probabilities
+        const newLiquidity = prop.liquidity + amount
 
-        if (membership.credits < wagerAmount) return { error: "Insufficient credits" }
+        const targetChoice = prop.choices.find(c => c.id === choiceId)
+        if (!targetChoice) return { error: "Invalid choice" }
 
-        // Transaction: Deduct credits, create bet
-        await prisma.$transaction([
-            prisma.leagueMember.update({
+        await prisma.$transaction(async (tx) => {
+            // Deduct credits
+            await tx.leagueMember.update({
                 where: { id: membership.id },
-                data: { credits: { decrement: wagerAmount } }
-            }),
-            prisma.bet.create({
+                data: { credits: { decrement: amount } }
+            })
+
+            // Create Bet
+            await tx.bet.create({
                 data: {
                     propId,
                     userId: session.user.id,
-                    amount: wagerAmount,
-                    side
+                    choiceId,
+                    amount
                 }
             })
-        ])
 
-        // Create activity
+            // Update pools
+            await tx.choice.update({
+                where: { id: choiceId },
+                data: { poolAmount: { increment: amount } }
+            })
+
+            await tx.prop.update({
+                where: { id: propId },
+                data: { liquidity: { increment: amount } }
+            })
+
+            // Recalculate probabilities
+            // simple model: prob = pool / total
+            // If total is 0? Handled by newLiquidity check (it's at least amount)
+
+            for (const choice of prop.choices) {
+                const isTarget = choice.id === choiceId
+                const currentPool = choice.poolAmount + (isTarget ? amount : 0)
+                let newProb = 0
+                if (newLiquidity > 0) {
+                    newProb = currentPool / newLiquidity
+                } else {
+                    newProb = 1.0 / prop.choices.length
+                }
+
+                await tx.choice.update({
+                    where: { id: choice.id },
+                    data: { probability: newProb }
+                })
+            }
+        })
+
         if (prop.league.showActivityFeed) {
             await prisma.activity.create({
                 data: {
                     leagueId: prop.leagueId,
                     userId: session.user.id,
                     type: "BET",
-                    content: `bet ${wagerAmount} credits on ${side}`
+                    content: `bet ${amount} credits on "${targetChoice.text}"`
                 }
             })
         }
-
-        // Notification for prop creator if someone bets on their prop (optional, but requested "bets made about you" - usually means props about you)
-        // User correction: REMOVE notification when someone bets on a prop about you.
-        // Keeping code clean by removing the block.
 
         revalidatePath(`/props/${propId}`)
     } catch (error) {
@@ -305,83 +328,61 @@ export async function resolveProp(formData: FormData) {
     if (!session?.user) return { error: "Not authenticated" }
 
     const propId = formData.get("propId") as string
-    const winningSide = formData.get("winningSide") as string
+    const winningChoiceId = formData.get("winningChoiceId") as string
 
-    if (!propId || !winningSide) return { error: "Missing required fields" }
+    if (!propId || !winningChoiceId) return { error: "Missing required fields" }
 
     try {
         const prop = await prisma.prop.findUnique({
             where: { id: propId },
             include: {
                 league: true,
-                bets: true
+                bets: true,
+                choices: true
             }
         })
 
         if (!prop) return { error: "Prop not found" }
-
-        // Check permission (League Owner or Prop Creator?)
-        // User said: "League Admin ... Resolve props". Admin = League Owner usually.
-        // But maybe creator too? "Admin still decides the result".
-        // I'll allow League Owner.
         if (prop.league.ownerId !== session.user.id) {
             return { error: "Only league admin can resolve props" }
         }
-
         if (prop.status === "RESOLVED" || prop.status === "CANCELED") {
             return { error: "Prop already finalized" }
         }
 
-        // Calculate payouts
-        const winningBets = prop.bets.filter(b => b.side === winningSide)
-        const losingBets = prop.bets.filter(b => b.side !== winningSide)
+        const winningChoice = prop.choices.find(c => c.id === winningChoiceId)
+        if (!winningChoice) return { error: "Invalid winning choice" }
 
-        const W_total = winningBets.reduce((sum: number, b: any) => sum + b.amount, 0)
-        const L_total = losingBets.reduce((sum: number, b: any) => sum + b.amount, 0)
+        const winningBets = prop.bets.filter(b => b.choiceId === winningChoiceId)
+        // Losing bets are bets on other choices
 
+        const totalPool = prop.liquidity
+        const winningPool = winningChoice.poolAmount
+
+        // Parimutuel Payout Logic
+        // IF winningPool > 0: Payout = bet.amount * (totalPool / winningPool)
+        // IF winningPool == 0: Refund everyone (house takes nothing)
 
         const updates = []
 
-        // Update prop status
         updates.push(prisma.prop.update({
             where: { id: propId },
             data: {
                 status: "RESOLVED",
-                winningSide,
+                winningChoiceId,
                 resolutionDeadline: new Date()
             }
         }))
 
-        // Distribute winnings
-        if (W_total > 0) {
+        if (winningPool > 0) {
             for (const bet of winningBets) {
-                let payout = 0
+                // Calculate share of total pool
+                const shareOfWin = bet.amount / winningPool
+                const payout = Math.floor(shareOfWin * totalPool)
 
-                if (prop.league.mode === "RANK") {
-                    // Fixed odds payout
-                    // If odds are 3 (3:1), payout is bet * 3
-                    // The user said: "if odds are 3:1 and I bet 100, then I win back 300"
-                    // This implies the payout is bet * odds.
-                    // Usually 3:1 means profit is 3x, total return is 4x.
-                    // But user example: "win back 300" on 100 bet with 3:1 odds.
-                    // This means the multiplier IS the odds value stored.
-                    // Stored odds: 2, 3, 4 etc.
-                    // So payout = bet.amount * (prop.odds || 2)
-                    const multiplier = prop.odds ? Number(prop.odds) : 2
-                    payout = Math.floor(bet.amount * multiplier)
-                } else {
-                    // Pool payout
-                    payout = Math.floor(bet.amount + (bet.amount / W_total) * L_total)
-                }
-
-                // Find member to update
+                // Find member
                 const member = await prisma.leagueMember.findUnique({
-                    where: {
-                        leagueId_userId: {
-                            leagueId: prop.leagueId,
-                            userId: bet.userId
-                        }
-                    }
+                    where: { leagueId_userId: { leagueId: prop.leagueId, userId: bet.userId } }
                 })
 
                 if (member) {
@@ -390,7 +391,6 @@ export async function resolveProp(formData: FormData) {
                         data: { credits: { increment: payout } }
                     }))
 
-                    // Notify winner
                     updates.push(prisma.notification.create({
                         data: {
                             userId: bet.userId,
@@ -403,70 +403,45 @@ export async function resolveProp(formData: FormData) {
                 }
             }
         } else {
-            // No winners
-            if (prop.league.mode === "RANK") {
-                // In RANK mode, if you lose, you lose. House wins (nobody gets credits).
-                // So we do nothing for losers.
-                // But wait, if NOBODY won, does that mean everyone lost? Yes.
-                // So no refunds in RANK mode unless cancelled.
-            } else {
-                // In POOL mode:
-                // If nobody bet the winning side → treat as CANCELED and refund everyone.
-                for (const bet of prop.bets) {
-                    const member = await prisma.leagueMember.findUnique({
-                        where: {
-                            leagueId_userId: {
-                                leagueId: prop.leagueId,
-                                userId: bet.userId
-                            }
-                        }
-                    })
-                    if (member) {
-                        updates.push(prisma.leagueMember.update({
-                            where: { id: member.id },
-                            data: { credits: { increment: bet.amount } }
-                        }))
-                    }
-                }
-                // Update status to CANCELED instead of RESOLVED
-                updates[0] = prisma.prop.update({
-                    where: { id: propId },
-                    data: {
-                        status: "CANCELED",
-                        resolutionDeadline: new Date()
-                    }
+            // No winners -> Refund everyone
+            for (const bet of prop.bets) {
+                const member = await prisma.leagueMember.findUnique({
+                    where: { leagueId_userId: { leagueId: prop.leagueId, userId: bet.userId } }
                 })
+                if (member) {
+                    updates.push(prisma.leagueMember.update({
+                        where: { id: member.id },
+                        data: { credits: { increment: bet.amount } }
+                    }))
+                }
             }
+            // Add notification for refund?
         }
 
-
-
-        // Create activity
         if (prop.league.showActivityFeed) {
             await prisma.activity.create({
                 data: {
                     leagueId: prop.leagueId,
                     userId: session.user.id,
                     type: "WIN",
-                    content: `resolved "${prop.question}" (Winner: ${winningSide})`
+                    content: `resolved "${prop.question}" (Winner: ${winningChoice.text})`
                 }
             })
         }
 
-        // Notify target player if prop was about them
+        // Notify target player
         if (prop.targetPlayerId) {
             const targetMember = await prisma.leagueMember.findUnique({
                 where: { id: prop.targetPlayerId },
                 include: { user: true }
             })
-
             if (targetMember) {
                 updates.push(prisma.notification.create({
                     data: {
                         userId: targetMember.userId,
                         leagueId: prop.leagueId,
-                        type: "SYSTEM", // Using SYSTEM as generic type for now, or could add PROP_RESOLVED
-                        message: `The prop "${prop.question}" about you was resolved: ${winningSide}`,
+                        type: "SYSTEM",
+                        message: `The prop "${prop.question}" about you was resolved: ${winningChoice.text}`,
                         link: `/props/${propId}`
                     }
                 }))
@@ -476,6 +451,7 @@ export async function resolveProp(formData: FormData) {
         await prisma.$transaction(updates)
         revalidatePath(`/props/${propId}`)
         revalidatePath(`/leagues/${prop.leagueId}`)
+
     } catch (error) {
         console.error(error)
         return { error: "Failed to resolve prop" }

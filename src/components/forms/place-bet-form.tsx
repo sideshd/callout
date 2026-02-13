@@ -4,21 +4,24 @@ import { placeBet } from "@/app/actions"
 import { useState, useTransition } from "react"
 import { Loader2 } from "lucide-react"
 
-interface PlaceBetFormProps {
-    propId: string
-    propType: "HIT" | "LINE"
-    betsBySide: Record<string, number>
-    maxCredits: number
-    wagerAmount: number
-    leagueMode: string
-    minBet?: number
-    odds?: number
+interface Choice {
+    id: string
+    text: string
+    probability: number
+    poolAmount: number
 }
 
-export function PlaceBetForm({ propId, propType, betsBySide, maxCredits, wagerAmount, leagueMode, minBet = 0, odds }: PlaceBetFormProps) {
+interface PlaceBetFormProps {
+    propId: string
+    choices: Choice[]
+    maxCredits: number
+}
+
+export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
-    const [customAmount, setCustomAmount] = useState<number>(minBet || 10)
+    const [amount, setAmount] = useState<number>(10)
+    const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null)
 
     async function handleSubmit(formData: FormData) {
         setError(null)
@@ -30,78 +33,66 @@ export function PlaceBetForm({ propId, propType, betsBySide, maxCredits, wagerAm
         })
     }
 
-    const isRankMode = leagueMode === "RANK"
-    const potentialWinnings = isRankMode && odds ? customAmount * odds : customAmount * 2
-
     return (
         <form action={handleSubmit} className="space-y-6">
             <input type="hidden" name="propId" value={propId} />
-            {isRankMode && <input type="hidden" name="amount" value={customAmount} />}
 
-            {isRankMode && (
-                <div className="space-y-2">
-                    <label htmlFor="betAmount" className="text-sm font-medium text-slate-300">Your Wager</label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            id="betAmount"
-                            value={customAmount}
-                            onChange={(e) => setCustomAmount(parseInt(e.target.value) || 0)}
-                            min={minBet}
-                            max={maxCredits}
-                            required
-                            className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                        />
-                        <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-500">
-                        <span>Min: {minBet} • Max: {maxCredits}</span>
-                        <span className="text-emerald-400">Win: {potentialWinnings} credits</span>
-                    </div>
+            <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-300">Select Outcome</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {choices.map((choice) => (
+                        <label key={choice.id} className="cursor-pointer group">
+                            <input
+                                type="radio"
+                                name="choiceId"
+                                value={choice.id}
+                                className="peer sr-only"
+                                required
+                                onChange={() => setSelectedChoiceId(choice.id)}
+                            />
+                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 hover:bg-slate-700 peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 transition-all relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <span className="font-bold text-white group-hover:text-emerald-400 peer-checked:text-emerald-400 transition-colors">
+                                        {choice.text}
+                                    </span>
+                                    <span className="text-lg font-bold text-emerald-400">
+                                        {(choice.probability * 100).toFixed(1)}%
+                                    </span>
+                                </div>
+                                <div className="text-xs text-slate-500 relative z-10">
+                                    {choice.poolAmount} credits pool
+                                </div>
+
+                                {/* Progress bar visual */}
+                                <div
+                                    className="absolute bottom-0 left-0 h-1 bg-emerald-500/30 transition-all duration-500"
+                                    style={{ width: `${choice.probability * 100}%` }}
+                                ></div>
+                            </div>
+                        </label>
+                    ))}
                 </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-                {propType === "HIT" ? (
-                    <>
-                        <label className="cursor-pointer">
-                            <input type="radio" name="side" value="YES" className="peer sr-only" required />
-                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 text-center hover:bg-slate-700 peer-checked:bg-emerald-500 peer-checked:border-emerald-400 transition-all">
-                                <span className="font-bold block mb-1">YES</span>
-                                <span className="text-xs opacity-75">{betsBySide["YES"] || 0} pool</span>
-                            </div>
-                        </label>
-                        <label className="cursor-pointer">
-                            <input type="radio" name="side" value="NO" className="peer sr-only" required />
-                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 text-center hover:bg-slate-700 peer-checked:bg-rose-500 peer-checked:border-rose-400 transition-all">
-                                <span className="font-bold block mb-1">NO</span>
-                                <span className="text-xs opacity-75">{betsBySide["NO"] || 0} pool</span>
-                            </div>
-                        </label>
-                    </>
-                ) : (
-                    <>
-                        <label className="cursor-pointer">
-                            <input type="radio" name="side" value="OVER" className="peer sr-only" required />
-                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 text-center hover:bg-slate-700 peer-checked:bg-emerald-500 peer-checked:border-emerald-400 transition-all">
-                                <span className="font-bold block mb-1">OVER</span>
-                                <span className="text-xs opacity-75">{betsBySide["OVER"] || 0} pool</span>
-                            </div>
-                        </label>
-                        <label className="cursor-pointer">
-                            <input type="radio" name="side" value="UNDER" className="peer sr-only" required />
-                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 text-center hover:bg-slate-700 peer-checked:bg-rose-500 peer-checked:border-rose-400 transition-all">
-                                <span className="font-bold block mb-1">UNDER</span>
-                                <span className="text-xs opacity-75">{betsBySide["UNDER"] || 0} pool</span>
-                            </div>
-                        </label>
-                    </>
-                )}
             </div>
 
-            <div className="bg-slate-800/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">Wager Amount</span>
-                <span className="text-xl font-bold text-emerald-400">{isRankMode ? customAmount : wagerAmount} credits</span>
+            <div className="space-y-2">
+                <label htmlFor="amount" className="text-sm font-medium text-slate-300">Wager Amount</label>
+                <div className="relative">
+                    <input
+                        type="number"
+                        id="amount"
+                        name="amount"
+                        value={amount}
+                        onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
+                        min="1"
+                        max={maxCredits}
+                        required
+                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    />
+                    <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-500">
+                    <span>Balance: {maxCredits}</span>
+                </div>
             </div>
 
             {error && (
@@ -112,11 +103,11 @@ export function PlaceBetForm({ propId, propType, betsBySide, maxCredits, wagerAm
 
             <button
                 type="submit"
-                disabled={isPending}
+                disabled={isPending || !selectedChoiceId}
                 className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl hover:bg-slate-100 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Placing Bet..." : "Place Bet"}
+                {isPending ? "Placing Bet..." : "Buy Shares"}
             </button>
         </form>
     )

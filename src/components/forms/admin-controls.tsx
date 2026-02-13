@@ -4,21 +4,29 @@ import { resolveProp, cancelProp } from "@/app/actions"
 import { useState, useTransition } from "react"
 import { Loader2 } from "lucide-react"
 
-interface AdminControlsProps {
-    propId: string
-    propType: "HIT" | "LINE"
+interface Choice {
+    id: string
+    text: string
 }
 
-export function AdminControls({ propId, propType }: AdminControlsProps) {
+interface AdminControlsProps {
+    propId: string
+    choices: Choice[]
+}
+
+export function AdminControls({ propId, choices }: AdminControlsProps) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
-    async function handleResolve(winningSide: string) {
+    async function handleResolve(choiceId: string) {
+        if (!confirm("Are you sure? This will resolve the market and distribute winnings.")) return
+
         setError(null)
         startTransition(async () => {
             const formData = new FormData()
             formData.append("propId", propId)
-            formData.append("winningSide", winningSide)
+            formData.append("winningChoiceId", choiceId)
+
             const result = await resolveProp(formData)
             if (result?.error) {
                 setError(result.error)
@@ -50,30 +58,33 @@ export function AdminControls({ propId, propType }: AdminControlsProps) {
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-                <button
-                    onClick={() => handleResolve(propType === "HIT" ? "YES" : "OVER")}
-                    disabled={isPending}
-                    className="w-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors text-sm font-bold disabled:opacity-50"
-                >
-                    Resolve {propType === "HIT" ? "YES" : "OVER"}
-                </button>
-                <button
-                    onClick={() => handleResolve(propType === "HIT" ? "NO" : "UNDER")}
-                    disabled={isPending}
-                    className="w-full bg-rose-500/10 text-rose-400 border border-rose-500/20 py-2 rounded-lg hover:bg-rose-500/20 transition-colors text-sm font-bold disabled:opacity-50"
-                >
-                    Resolve {propType === "HIT" ? "NO" : "UNDER"}
-                </button>
-            </div>
+            <div className="space-y-4">
+                <div>
+                    <p className="text-xs text-slate-400 mb-2">Resolve Prop</p>
+                    <div className="flex flex-wrap gap-2">
+                        {choices.map((choice) => (
+                            <button
+                                key={choice.id}
+                                onClick={() => handleResolve(choice.id)}
+                                disabled={isPending}
+                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors text-sm font-bold disabled:opacity-50"
+                            >
+                                {choice.text} Wins
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
-            <button
-                onClick={handleCancel}
-                disabled={isPending}
-                className="w-full mt-4 text-slate-500 hover:text-slate-300 text-sm underline disabled:opacity-50"
-            >
-                {isPending ? "Processing..." : "Cancel Prop & Refund"}
-            </button>
+                <div className="pt-4 border-t border-white/5">
+                    <button
+                        onClick={handleCancel}
+                        disabled={isPending}
+                        className="text-slate-500 hover:text-red-400 text-sm underline disabled:opacity-50 transition-colors"
+                    >
+                        {isPending ? "Processing..." : "Cancel Prop & Refund"}
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

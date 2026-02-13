@@ -2,14 +2,48 @@
 
 import { createProp } from "@/app/actions"
 import { useState, useTransition } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus, X, Check, List } from "lucide-react"
+
+type MarketType = "BINARY" | "MULTIPLE_CHOICE"
 
 export function CreatePropForm({ leagueId, members, leagueMode, currentUserId }: { leagueId: string, members: any[], leagueMode: string, currentUserId: string }) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
+    const [marketType, setMarketType] = useState<MarketType>("BINARY")
+    const [choices, setChoices] = useState<string[]>(["", ""])
+
+    const addChoice = () => {
+        setChoices([...choices, ""])
+    }
+
+    const removeChoice = (index: number) => {
+        if (choices.length <= 2) return
+        const newChoices = choices.filter((_, i) => i !== index)
+        setChoices(newChoices)
+    }
+
+    const updateChoice = (index: number, value: string) => {
+        const newChoices = [...choices]
+        newChoices[index] = value
+        setChoices(newChoices)
+    }
+
     async function handleSubmit(formData: FormData) {
         setError(null)
+
+        // Append marketType manually if not picked up (though input hidden will catch it)
+        // If MULTIPLE_CHOICE, we need to ensure all choices are sent. 
+        // With named inputs "choices", formData.getAll("choices") will work.
+        // For BINARY, we can just send "Yes" and "No" or let backend handle.
+        // Let's make it explicit here to be safe.
+
+        if (marketType === "BINARY") {
+            formData.delete("choices")
+            formData.append("choices", "Yes")
+            formData.append("choices", "No")
+        }
+
         startTransition(async () => {
             const result = await createProp(formData)
             if (result?.error) {
@@ -21,97 +55,87 @@ export function CreatePropForm({ leagueId, members, leagueMode, currentUserId }:
     return (
         <form action={handleSubmit} className="space-y-6">
             <input type="hidden" name="leagueId" value={leagueId} />
+            <input type="hidden" name="marketType" value={marketType} />
+
+            {/* Market Type Toggle */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-800/50 rounded-xl border border-white/5">
+                <button
+                    type="button"
+                    onClick={() => setMarketType("BINARY")}
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${marketType === "BINARY"
+                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                            : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                >
+                    <Check className="size-4" />
+                    Yes / No
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setMarketType("MULTIPLE_CHOICE")}
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${marketType === "MULTIPLE_CHOICE"
+                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                            : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                >
+                    <List className="size-4" />
+                    Multiple Choice
+                </button>
+            </div>
 
             <div className="space-y-2">
-                <label htmlFor="question" className="text-sm font-medium text-slate-300">Question</label>
+                <label htmlFor="question" className="text-sm font-medium text-slate-300">Question / Prop</label>
                 <textarea
                     id="question"
                     name="question"
                     required
-                    rows={3}
-                    placeholder="e.g. Will Dylan get cheated on this semester?"
+                    rows={2}
+                    placeholder={marketType === "BINARY" ? "e.g. Will the Chiefs win the Super Bowl?" : "e.g. Who will win the 2024 Election?"}
                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-none"
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <label htmlFor="type" className="text-sm font-medium text-slate-300">Type</label>
-                    <select
-                        id="type"
-                        name="type"
-                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none"
-                    >
-                        <option value="HIT">Hit / Miss</option>
-                        <option value="LINE">Over / Under</option>
-                    </select>
-                </div>
-
-                {leagueMode === "POOL" ? (
+            {marketType === "MULTIPLE_CHOICE" && (
+                <div className="space-y-3">
+                    <label className="text-sm font-medium text-slate-300">Outcomes</label>
                     <div className="space-y-2">
-                        <label htmlFor="wagerAmount" className="text-sm font-medium text-slate-300">Wager Amount</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                id="wagerAmount"
-                                name="wagerAmount"
-                                required
-                                min="0"
-                                defaultValue="10"
-                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                            />
-                            <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
-                        </div>
-                        <p className="text-xs text-slate-500">All bets must be this exact amount</p>
+                        {choices.map((choice, index) => (
+                            <div key={index} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    name="choices"
+                                    value={choice}
+                                    onChange={(e) => updateChoice(index, e.target.value)}
+                                    placeholder={`Option ${index + 1}`}
+                                    required
+                                    className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                                />
+                                {choices.length > 2 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeChoice(index)}
+                                        className="p-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                                    >
+                                        <X className="size-5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                ) : (
-                    <div className="space-y-2">
-                        <label htmlFor="minBet" className="text-sm font-medium text-slate-300">Minimum Bet (Optional)</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                id="minBet"
-                                name="minBet"
-                                min="0"
-                                defaultValue="10"
-                                placeholder="0"
-                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                            />
-                            <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
-                        </div>
-                        <p className="text-xs text-slate-500">Bettors choose their wager amount (min: this value)</p>
-                    </div>
-                )}
-            </div>
-
-            {leagueMode === "RANK" && (
-                <div className="space-y-2">
-                    <label htmlFor="odds" className="text-sm font-medium text-slate-300">Odds (Payout Multiplier)</label>
-                    <select
-                        id="odds"
-                        name="odds"
-                        required
-                        defaultValue="2"
-                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none"
+                    <button
+                        type="button"
+                        onClick={addChoice}
+                        className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors"
                     >
-                        <option value="1">1:1 (Even money)</option>
-                        <option value="2">2:1 (Double)</option>
-                        <option value="3">3:1 (Triple)</option>
-                        <option value="4">4:1</option>
-                        <option value="5">5:1</option>
-                        <option value="6">6:1</option>
-                        <option value="7">7:1</option>
-                        <option value="8">8:1</option>
-                        <option value="9">9:1</option>
-                        <option value="10">10:1</option>
-                    </select>
-                    <p className="text-xs text-slate-500">Winners receive their bet × this multiplier</p>
+                        <Plus className="size-4" />
+                        Add Option
+                    </button>
                 </div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <label htmlFor="targetPlayerId" className="text-sm font-medium text-slate-300">Target Player</label>
+                    <label htmlFor="targetPlayerId" className="text-sm font-medium text-slate-300">Target Player (Optional)</label>
                     <select
                         id="targetPlayerId"
                         name="targetPlayerId"
@@ -128,7 +152,7 @@ export function CreatePropForm({ leagueId, members, leagueMode, currentUserId }:
                     </select>
                 </div>
 
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2">
                     <label htmlFor="bettingDeadline" className="text-sm font-medium text-slate-300">Betting Deadline</label>
                     <input
                         type="datetime-local"
@@ -154,7 +178,7 @@ export function CreatePropForm({ leagueId, members, leagueMode, currentUserId }:
                 className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl hover:bg-slate-100 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Posting..." : "Post Prop"}
+                {isPending ? "Creating Prop..." : "Create Prop"}
             </button>
         </form >
     )

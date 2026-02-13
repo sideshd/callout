@@ -30,7 +30,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                 include: {
                     creator: { include: { user: true } },
                     targetPlayer: { include: { user: true } },
-                    bets: true
+                    bets: true,
+                    choices: true
                 }
             },
             activities: {
