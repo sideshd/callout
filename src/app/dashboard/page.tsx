@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Plus, Users, TrendingUp } from "lucide-react"
 import { Logo } from "@/components/ui/logo"
-import { DockNavigation } from "@/components/ui/dock-navigation"
+
 
 export default async function Dashboard() {
     const session = await getServerSession(authOptions)
@@ -30,7 +30,7 @@ export default async function Dashboard() {
     })
 
     return (
-        <div className="min-h-screen relative pb-32">
+        <div className="min-h-screen relative">
             {/* Blur nav */}
             <header className="blur-bg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -122,7 +122,7 @@ export default async function Dashboard() {
                 )}
             </main>
 
-            <DockNavigation />
+
         </div>
     )
 }

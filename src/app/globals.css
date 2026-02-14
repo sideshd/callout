@@ -535,50 +535,7 @@
   }
 }
 
-/* ============================================
-   BOTTOM DOCK NAVIGATION
-   ============================================ */
 
-@layer components {
-  .wow-dock {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 18px;
-    z-index: 70;
-    width: min(560px, calc(100% - 24px));
-    border-radius: 22px;
-    padding: 10px;
-    display: flex;
-    gap: 10px;
-    background: rgba(12, 12, 16, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-  }
-
-  .wow-dock button {
-    flex: 1;
-    border-radius: 18px;
-    padding: 10px 12px;
-    font-weight: 900;
-    letter-spacing: 0.01em;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background: rgba(255, 255, 255, 0.04);
-    transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
-  }
-
-  .wow-dock button:hover {
-    transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.07);
-  }
-
-  .wow-dock button.active {
-    background: linear-gradient(135deg, rgba(122, 92, 255, 0.40), rgba(0, 224, 255, 0.22));
-    border-color: rgba(0, 224, 255, 0.25);
-    box-shadow: 0 12px 30px rgba(0, 224, 255, 0.10);
-  }
-}
 
 /* ============================================
    UTILITY CLASSES

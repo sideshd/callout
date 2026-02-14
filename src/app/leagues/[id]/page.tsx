@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/logo"
 import { ArrowLeft, Copy, Share2, Plus, TrendingUp } from "lucide-react"
 import { CopyInviteCode } from "@/components/league/copy-invite-code"
 import Link from "next/link"
-import { DockNavigation } from "@/components/ui/dock-navigation"
+
 
 export const dynamic = "force-dynamic"
 
@@ -65,7 +65,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     })
 
     return (
-        <div className="min-h-screen relative pb-32">
+        <div className="min-h-screen relative">
             {/* Header */}
             <header className="blur-bg sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -121,7 +121,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                 />
             </main>
 
-            <DockNavigation />
+
         </div>
     )
 }

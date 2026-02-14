@@ -21,19 +21,19 @@ export function JoinLeagueForm() {
     return (
         <form action={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <label htmlFor="inviteCode" className="text-sm font-medium text-slate-300">Invite Code</label>
+                <label htmlFor="inviteCode" className="text-sm font-black text-white/70 uppercase tracking-wider">Invite Code</label>
                 <input
                     type="text"
                     id="inviteCode"
                     name="inviteCode"
                     required
                     placeholder="e.g. ck8s9d7f..."
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-mono"
+                    className="input-apple font-mono"
                 />
             </div>
 
             {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <div className="text-[var(--apple-red)] text-sm bg-[var(--apple-red)]/10 p-3 rounded-2xl border border-[var(--apple-red)]/20">
                     {error}
                 </div>
             )}
@@ -41,7 +41,7 @@ export function JoinLeagueForm() {
             <button
                 type="submit"
                 disabled={isPending}
-                className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl hover:bg-slate-100 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {isPending ? "Joining..." : "Join League"}
