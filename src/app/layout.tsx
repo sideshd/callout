@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CallOut - Private Leagues & Prop Betting",
-  description: "Create private leagues, make prop bets, and compete with friends",
+  title: "CallOut - Social Prediction Markets",
+  description: "Create prediction markets, trade shares, and compete with friends",
   icons: {
     icon: '/favicon.ico',
   },
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <AuroraBackground />
         {children}
       </body>
     </html>

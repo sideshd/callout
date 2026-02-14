@@ -15,8 +15,6 @@ export async function createLeague(formData: FormData) {
     const name = formData.get("name") as string
     const description = formData.get("description") as string
     const startingCredits = parseInt(formData.get("startingCredits") as string) || 1000
-    const mode = (formData.get("mode") as string) || "POOL"
-
     if (!name) return { error: "Name is required" }
 
     let league;
@@ -26,7 +24,6 @@ export async function createLeague(formData: FormData) {
                 name,
                 description,
                 startingCredits,
-                mode: mode as "POOL" | "RANK",
                 ownerId: session.user.id,
                 members: {
                     create: {
@@ -109,9 +106,9 @@ export async function createProp(formData: FormData) {
     const question = formData.get("question") as string
     const marketType = (formData.get("marketType") as "BINARY" | "MULTIPLE_CHOICE") || "BINARY"
     const targetPlayerId = formData.get("targetPlayerId") as string
-    const bettingDeadlineStr = formData.get("bettingDeadline") as string
+    const bettingDeadlineStr = formData.get("bettingDeadline") as string | null
 
-    if (!leagueId || !question || !bettingDeadlineStr) {
+    if (!leagueId || !question) {
         return { error: "Missing required fields" }
     }
 
@@ -160,7 +157,7 @@ export async function createProp(formData: FormData) {
                 marketType,
                 liquidity: 0,
                 targetPlayerId: targetPlayerId || null,
-                bettingDeadline: new Date(bettingDeadlineStr),
+                bettingDeadline: bettingDeadlineStr ? new Date(bettingDeadlineStr) : null,
                 status: "LIVE",
                 choices: {
                     create: choices.map(text => ({
@@ -236,7 +233,7 @@ export async function placeBet(formData: FormData) {
 
         if (!prop) return { error: "Prop not found" }
         if (prop.status !== "LIVE") return { error: "Prop is not live" }
-        if (new Date() > prop.bettingDeadline) return { error: "Betting closed" }
+        if (prop.bettingDeadline && new Date() > prop.bettingDeadline) return { error: "Betting closed" }
 
         const membership = await prisma.leagueMember.findUnique({
             where: {

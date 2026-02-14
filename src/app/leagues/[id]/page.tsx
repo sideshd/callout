@@ -4,9 +4,10 @@ import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { LeagueTabs } from "@/components/league/league-tabs"
 import { Logo } from "@/components/ui/logo"
-import { ArrowLeft, Copy, Share2, Plus } from "lucide-react"
+import { ArrowLeft, Copy, Share2, Plus, TrendingUp } from "lucide-react"
 import { CopyInviteCode } from "@/components/league/copy-invite-code"
 import Link from "next/link"
+import { DockNavigation } from "@/components/ui/dock-navigation"
 
 export const dynamic = "force-dynamic"
 
@@ -64,49 +65,44 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     })
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white pb-20">
+        <div className="min-h-screen relative pb-32">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-md border-b border-white/10">
+            <header className="blur-bg sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                            <ArrowLeft className="size-5 text-slate-400" />
+                            <ArrowLeft className="size-5 text-white/70" />
                         </Link>
                         <Logo className="size-8" />
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="flex flex-col items-end">
-                            <span className="text-xs text-slate-400">Your Credits</span>
-                            <span className="font-mono font-bold text-emerald-400">{membership.credits}</span>
+                        <div className="pill px-4 py-1.5 flex flex-col items-end">
+                            <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">Credits</span>
+                            <span className="font-black text-[var(--apple-green)] text-lg leading-tight">${membership.credits.toFixed(0)}</span>
                         </div>
-                        <div className="size-8 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold border border-white/10">
+                        <div className="size-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
                             {session.user.name?.[0] || "U"}
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-4 py-8">
+            <main className="relative z-10 max-w-5xl mx-auto px-4 py-8">
                 {/* League Header */}
-                <div className="mb-8">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div className="mb-8 animate-slide-up">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
                         <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl font-bold">{league.name}</h1>
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${league.mode === "RANK" ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"}`}>
-                                    {league.mode} Mode
-                                </span>
-                            </div>
-                            <p className="text-slate-400 max-w-xl">{league.description}</p>
+                            <h1 className="text-4xl font-black tracking-tight mb-2 wow-grad">{league.name}</h1>
+                            <p className="text-white/60 max-w-xl">{league.description || "Prediction market league"}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             {(league.allowPropCreation || league.ownerId === session.user.id) && (
                                 <Link
                                     href={`/leagues/${league.id}/props/create`}
-                                    className="bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-2"
+                                    className="btn-primary px-4 py-2.5 text-sm flex items-center gap-2"
                                 >
                                     <Plus className="size-4" />
-                                    New Prop
+                                    New Market
                                 </Link>
                             )}
                             <CopyInviteCode inviteCode={league.inviteCode} />
@@ -124,6 +120,8 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                     isOwner={league.ownerId === session.user.id}
                 />
             </main>
+
+            <DockNavigation />
         </div>
     )
 }

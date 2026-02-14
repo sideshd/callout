@@ -74,7 +74,7 @@ model League {
   inviteCode        String       @unique @default(cuid())
   startingCredits   Int          @default(1000)
   status            LeagueStatus @default(ACTIVE)
-  mode              LeagueMode   @default(POOL)
+  // [REMOVED] mode field - now always prediction market style
   allowPropCreation Boolean      @default(true)
   showActivityFeed  Boolean      @default(true)
   createdAt         DateTime     @default(now())
@@ -122,9 +122,13 @@ model Prop {
   // [REMOVED] type (PropType: HIT/LINE are legacy)
 
   targetPlayerId     String?
-  bettingDeadline    DateTime
+  bettingDeadline    DateTime? // [MODIFIED] Now optional for pure prediction markets
   resolutionDeadline DateTime?
   winningChoiceId    String? // [NEW] Links to Choice logic
+
+  // [NEW] Filtering fields
+  category String? // e.g. "Social", "Sports", "Future", etc.
+  person   String? // Person tagged in this prop
 
   status    PropStatus @default(LIVE)
   createdAt DateTime   @default(now())
@@ -234,10 +238,7 @@ enum LeagueStatus {
   COMPLETED
 }
 
-enum LeagueMode {
-  POOL // Fixed credits, zero-sum (poker-style)
-  RANK // Odds-based, unlimited credits (sportsbook-style)
-}
+// [REMOVED] LeagueMode enum - now only prediction market style
 
 // [NEW] Market Type
 enum MarketType {

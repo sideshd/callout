@@ -21,19 +21,19 @@ export function CreateLeagueForm() {
     return (
         <form action={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium text-slate-300">League Name</label>
+                <label htmlFor="name" className="text-sm font-black text-white/70 uppercase tracking-wider">League Name</label>
                 <input
                     type="text"
                     id="name"
                     name="name"
                     required
                     placeholder="e.g. The Squad 2025"
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="input-apple"
                 />
             </div>
 
             <div className="space-y-2">
-                <label htmlFor="startingCredits" className="text-sm font-medium text-slate-300">Starting Credits</label>
+                <label htmlFor="startingCredits" className="text-sm font-black text-white/70 uppercase tracking-wider">Starting Credits</label>
                 <input
                     type="number"
                     id="startingCredits"
@@ -41,55 +41,23 @@ export function CreateLeagueForm() {
                     defaultValue={1000}
                     min={100}
                     step={100}
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="input-apple"
                 />
             </div>
 
-            <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-300">League Mode</label>
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="relative cursor-pointer">
-                        <input
-                            type="radio"
-                            name="mode"
-                            value="POOL"
-                            defaultChecked
-                            className="peer sr-only"
-                        />
-                        <div className="bg-slate-900/50 border-2 border-white/10 rounded-xl p-4 transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 hover:border-white/20">
-                            <div className="font-bold text-white mb-1">🎰 POOL</div>
-                            <div className="text-xs text-slate-400">Poker-style: Fixed credits, zero-sum betting</div>
-                        </div>
-                    </label>
-
-                    <label className="relative cursor-pointer">
-                        <input
-                            type="radio"
-                            name="mode"
-                            value="RANK"
-                            className="peer sr-only"
-                        />
-                        <div className="bg-slate-900/50 border-2 border-white/10 rounded-xl p-4 transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 hover:border-white/20">
-                            <div className="font-bold text-white mb-1">📊 RANK</div>
-                            <div className="text-xs text-slate-400">Sportsbook-style: Odds-based, unlimited credits</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
             <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium text-slate-300">Description (Optional)</label>
+                <label htmlFor="description" className="text-sm font-black text-white/70 uppercase tracking-wider">Description (Optional)</label>
                 <textarea
                     id="description"
                     name="description"
                     rows={3}
                     placeholder="What's this league about?"
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-none"
+                    className="input-apple resize-none"
                 />
             </div>
 
             {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <div className="text-[var(--apple-red)] text-sm bg-[var(--apple-red)]/10 p-3 rounded-2xl border border-[var(--apple-red)]/20">
                     {error}
                 </div>
             )}
@@ -97,7 +65,7 @@ export function CreateLeagueForm() {
             <button
                 type="submit"
                 disabled={isPending}
-                className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl hover:bg-slate-100 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {isPending ? "Creating..." : "Create League"}

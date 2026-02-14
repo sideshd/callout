@@ -49,58 +49,43 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
     return (
         <div>
             {/* Tabs Header */}
-            <div className="flex items-center gap-4 mb-8 border-b border-white/10 overflow-x-auto">
+            <div className="flex items-center gap-2 mb-8 overflow-x-auto p-1 glass rounded-2xl">
                 <button
                     onClick={() => setActiveTab("board")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "board" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "board" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
                 >
                     Board
-                    {activeTab === "board" && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
-                    )}
                 </button>
                 <button
                     onClick={() => setActiveTab("feed")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "feed" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "feed" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
                 >
-                    Activity Feed
-                    {activeTab === "feed" && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
-                    )}
+                    Activity
                 </button>
                 <button
                     onClick={() => setActiveTab("notifications")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap flex items-center gap-2 ${activeTab === "notifications" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap flex items-center gap-2 ${activeTab === "notifications" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
                 >
                     Notifications
                     {unreadNotificationsCount > 0 && (
-                        <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        <span className="bg-[var(--apple-red)] text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
                             {unreadNotificationsCount}
                         </span>
-                    )}
-                    {activeTab === "notifications" && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
                     )}
                 </button>
                 {isOwner && (
                     <button
                         onClick={() => setActiveTab("admin")}
-                        className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "admin" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                        className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "admin" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
                     >
                         Admin
-                        {activeTab === "admin" && (
-                            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
-                        )}
                     </button>
                 )}
                 <button
                     onClick={() => setActiveTab("settings")}
-                    className={`pb-4 px-2 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === "settings" ? "text-white" : "text-slate-400 hover:text-slate-300"}`}
+                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "settings" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
                 >
                     Settings
-                    {activeTab === "settings" && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400 rounded-t-full"></div>
-                    )}
                 </button>
             </div>
 
@@ -112,9 +97,9 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                         {/* Active Props */}
                         <div>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
-                                    Active Props
+                                <h2 className="text-xl font-black flex items-center gap-2">
+                                    <span className="size-2 rounded-full bg-[var(--apple-green)] animate-pulse"></span>
+                                    Active Markets
                                 </h2>
 
                                 {/* Filters */}
@@ -122,94 +107,90 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                     <select
                                         value={filterBetStatus}
                                         onChange={(e) => setFilterBetStatus(e.target.value as any)}
-                                        className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                                        className="glass rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--apple-blue)] appearance-none pr-8"
                                     >
-                                        <option value="ALL">All Props</option>
+                                        <option value="ALL">All Markets</option>
                                         <option value="BET_ON">My Positions</option>
-                                        <option value="NOT_BET_ON">New Props</option>
+                                        <option value="NOT_BET_ON">Unseen</option>
                                     </select>
                                 </div>
                             </div>
 
                             {filteredProps.length === 0 ? (
-                                <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl bg-white/5">
-                                    <p className="text-slate-400 mb-4">No active props found.</p>
+                                <div className="text-center py-12 glass rounded-3xl">
+                                    <p className="text-white/40 mb-4">No active markets found.</p>
                                     {league.allowPropCreation || isOwner ? (
                                         <Link
                                             href={`/leagues/${league.id}/props/create`}
-                                            className="text-emerald-400 hover:text-emerald-300 font-medium"
+                                            className="text-[var(--apple-blue)] hover:text-[var(--apple-blue)]/80 font-black"
                                         >
                                             Create one?
                                         </Link>
                                     ) : (
-                                        <p className="text-xs text-slate-500">Prop creation is currently disabled.</p>
+                                        <p className="text-xs text-white/30">Market creation is currently disabled.</p>
                                     )}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
                                     {filteredProps.map((prop) => {
                                         const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
-                                        const isExpired = new Date(prop.bettingDeadline) < new Date()
-                                        const isDeadlineClose = !isExpired && new Date(prop.bettingDeadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 // 24 hours
                                         const totalLiquidity = prop.liquidity || prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)
-                                        const topChoice = prop.choices?.sort((a, b) => b.probability - a.probability)[0]
+                                        const topChoice = prop.choices?.sort((a: any, b: any) => b.probability - a.probability)[0]
 
                                         return (
                                             <Link
                                                 key={prop.id}
                                                 href={`/props/${prop.id}`}
-                                                className="block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:border-white/20 group"
+                                                className="block glass rounded-3xl p-6 hover:bg-white/8 transition-all group card-shadow"
                                             >
                                                 <div className="flex items-start justify-between gap-4 mb-4">
                                                     <div>
-                                                        <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors mb-1">
+                                                        <h3 className="text-lg font-black text-white group-hover:text-[var(--apple-blue)] transition-colors mb-1">
                                                             {prop.question}
                                                         </h3>
                                                         {topChoice && (
-                                                            <div className="text-xs text-slate-400">
-                                                                Top outcome: <span className="text-white font-bold">{topChoice.text}</span> ({(topChoice.probability * 100).toFixed(0)}%)
+                                                            <div className="text-xs text-white/40">
+                                                                Top: <span className="text-[var(--apple-green)] font-black">{topChoice.text}</span> ({(topChoice.probability * 100).toFixed(0)}%)
                                                             </div>
                                                         )}
                                                     </div>
 
                                                     <div className="flex flex-col items-end gap-2">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="bg-purple-500/10 text-purple-400 text-xs font-bold px-2 py-1 rounded uppercase">
-                                                                Prop
+                                                            <span className="bg-[var(--apple-purple)]/15 text-[var(--apple-purple)] text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                                                Market
                                                             </span>
                                                             {prop.targetPlayer && (
-                                                                <span className="bg-slate-700/50 text-slate-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                                <span className="glass text-white/70 text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
                                                                     <span>@</span>
                                                                     {prop.targetPlayer.user.name}
                                                                 </span>
                                                             )}
-                                                            {(prop.status === "LOCKED" || isExpired) && (
-                                                                <span className="bg-amber-500/10 text-amber-400 text-xs font-bold px-2 py-1 rounded uppercase">
+                                                            {prop.status === "LOCKED" && (
+                                                                <span className="bg-[var(--apple-orange)]/15 text-[var(--apple-orange)] text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
                                                                     Locked
                                                                 </span>
                                                             )}
                                                         </div>
                                                         {hasBet && (
-                                                            <span className="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                            <span className="bg-[var(--apple-green)]/15 text-[var(--apple-green)] text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
                                                                 <Check className="size-3" />
-                                                                Position Held
+                                                                Position
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between text-sm text-slate-400">
+                                                <div className="flex items-center justify-between text-sm text-white/40">
                                                     <div className="flex items-center gap-2">
-                                                        <div className="size-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white font-bold">
+                                                        <div className="size-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[10px] text-white font-black">
                                                             {prop.creator.user.name?.[0] || "?"}
                                                         </div>
-                                                        <span>{prop.creator.user.name}</span>
+                                                        <span className="font-bold">{prop.creator.user.name}</span>
                                                         <span>•</span>
-                                                        <span className={isDeadlineClose ? "text-amber-400 font-bold" : isExpired ? "text-slate-500 font-bold" : ""}>
-                                                            {isExpired ? "LOCKED" : `Closes ${formatDistanceToNow(new Date(prop.bettingDeadline), { addSuffix: true })}`}
-                                                        </span>
+                                                        <span>{formatDistanceToNow(new Date(prop.createdAt), { addSuffix: true })}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-1 text-emerald-400">
+                                                    <div className="flex items-center gap-1 text-[var(--apple-green)] font-black">
                                                         <TrendingUp className="size-4" />
                                                         <span>{totalLiquidity} vol</span>
                                                     </div>
@@ -224,25 +205,25 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                         {/* Past Props */}
                         {pastProps.length > 0 && (
                             <div>
-                                <h2 className="text-xl font-bold mb-4 text-slate-400">Past Props</h2>
+                                <h2 className="text-xl font-black mb-4 text-white/40">Resolved</h2>
                                 <div className="space-y-4 opacity-75 hover:opacity-100 transition-opacity">
                                     {pastProps.map((prop) => (
                                         <Link
                                             key={prop.id}
                                             href={`/props/${prop.id}`}
-                                            className="block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all"
+                                            className="block glass rounded-3xl p-6 hover:bg-white/8 transition-all"
                                         >
                                             <div className="flex items-start justify-between gap-4 mb-2">
-                                                <h3 className="text-lg font-medium text-slate-300">
+                                                <h3 className="text-lg font-black text-white/70">
                                                     {prop.question}
                                                 </h3>
-                                                <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${prop.status === "RESOLVED" ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"
+                                                <span className={`text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${prop.status === "RESOLVED" ? "bg-[var(--apple-blue)]/15 text-[var(--apple-blue)]" : "bg-[var(--apple-red)]/15 text-[var(--apple-red)]"
                                                     }`}>
                                                     {prop.status}
                                                 </span>
                                             </div>
-                                            <div className="text-sm text-slate-500">
-                                                Resolved {prop.resolutionDeadline ? formatDistanceToNow(new Date(prop.resolutionDeadline), { addSuffix: true }) : ""}
+                                            <div className="text-sm text-white/30">
+                                                {prop.resolutionDeadline ? `Resolved ${formatDistanceToNow(new Date(prop.resolutionDeadline), { addSuffix: true })}` : ""}
                                             </div>
                                         </Link>
                                     ))}
@@ -253,13 +234,13 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
 
                     {/* Sidebar: Leaderboard */}
                     <div className="space-y-6">
-                        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+                        <div className="glass rounded-3xl p-6 card-shadow">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
-                                    <Trophy className="size-5 text-amber-400" />
-                                    <h2 className="font-bold text-lg">Leaderboard</h2>
+                                    <Trophy className="size-5 text-[var(--apple-orange)]" />
+                                    <h2 className="font-black text-lg">Leaderboard</h2>
                                 </div>
-                                <Link href={`/leagues/${league.id}/leaderboard`} className="text-xs text-slate-400 hover:text-white">
+                                <Link href={`/leagues/${league.id}/leaderboard`} className="text-xs text-[var(--apple-blue)] hover:text-[var(--apple-blue)]/80 font-black">
                                     View All
                                 </Link>
                             </div>
@@ -268,22 +249,22 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                 {league.members.map((member, index) => (
                                     <div key={member.id} className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <span className={`w-6 text-center font-bold ${index === 0 ? "text-amber-400" :
-                                                index === 1 ? "text-slate-300" :
-                                                    index === 2 ? "text-amber-700" : "text-slate-500"
+                                            <span className={`w-6 text-center font-black ${index === 0 ? "text-[var(--apple-orange)]" :
+                                                index === 1 ? "text-white/60" :
+                                                    index === 2 ? "text-[var(--apple-orange)]/60" : "text-white/30"
                                                 }`}>
                                                 {index + 1}
                                             </span>
                                             <div className="flex items-center gap-2">
-                                                <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
+                                                <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
                                                     {member.user.name?.[0] || "?"}
                                                 </div>
-                                                <span className={member.userId === currentUserId ? "text-emerald-400 font-bold" : "text-slate-300"}>
+                                                <span className={member.userId === currentUserId ? "text-[var(--apple-green)] font-black" : "text-white/80 font-bold"}>
                                                     {member.user.name}
                                                 </span>
                                             </div>
                                         </div>
-                                        <span className="font-mono font-medium text-slate-400">{member.credits}</span>
+                                        <span className="font-mono font-black text-[var(--apple-green)]">{member.credits}</span>
                                     </div>
                                 ))}
                             </div>
@@ -307,16 +288,16 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                                 </div>
                             ) : (
                                 activities.map((activity) => (
-                                    <div key={activity.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-start gap-4">
-                                        <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold shrink-0">
+                                    <div key={activity.id} className="glass rounded-2xl p-4 flex items-start gap-4">
+                                        <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-black shrink-0 border border-white/20">
                                             {activity.user.name?.[0] || "?"}
                                         </div>
                                         <div>
                                             <p className="text-sm">
                                                 <span className="font-bold text-white">{activity.user.name}</span>
-                                                <span className="text-slate-400"> {activity.content}</span>
+                                                <span className="text-white/50"> {activity.content}</span>
                                             </p>
-                                            <p className="text-xs text-slate-500 mt-1">
+                                            <p className="text-xs text-white/30 mt-1">
                                                 {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
                                             </p>
                                         </div>
@@ -389,9 +370,9 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
             {activeTab === "admin" && isOwner && (
                 <div className="max-w-2xl mx-auto space-y-8">
                     {/* Settings */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                            <Settings className="size-5 text-slate-400" />
+                    <div className="glass rounded-3xl p-6 card-shadow">
+                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                            <Settings className="size-5 text-white/40" />
                             League Settings
                         </h2>
                         <form action={updateLeagueSettings} className="space-y-4">
@@ -433,7 +414,7 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
 
                             <button
                                 type="submit"
-                                className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={isPending}
                                 onClick={(e) => {
                                     e.preventDefault()
@@ -447,9 +428,9 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                     </div>
 
                     {/* Member Management */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                            <Users className="size-5 text-slate-400" />
+                    <div className="glass rounded-3xl p-6 card-shadow">
+                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                            <Users className="size-5 text-white/40" />
                             Member Management
                         </h2>
                         <div className="space-y-4">
@@ -520,9 +501,9 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
 
             {activeTab === "settings" && (
                 <div className="max-w-2xl mx-auto space-y-8">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                            <Settings className="size-5 text-slate-400" />
+                    <div className="glass rounded-3xl p-6 card-shadow">
+                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                            <Settings className="size-5 text-white/40" />
                             Settings
                         </h2>
 

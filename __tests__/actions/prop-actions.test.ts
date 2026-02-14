@@ -10,6 +10,9 @@ jest.mock('@/lib/db', () => ({
         leagueMember: {
             findUnique: jest.fn(),
         },
+        activity: {
+            create: jest.fn(),
+        },
     },
 }))
 
@@ -32,9 +35,9 @@ describe('createProp Action', () => {
         const formData = new FormData()
         formData.append('leagueId', 'league-1')
         formData.append('question', 'Will it rain?')
-        formData.append('type', 'HIT')
-        formData.append('wagerAmount', '10')
-        formData.append('bettingDeadline', new Date().toISOString())
+        formData.append('marketType', 'BINARY')
+        formData.append('choices', 'Yes')
+        formData.append('choices', 'No')
 
             // Mock membership check
             ; (prisma.leagueMember.findUnique as jest.Mock).mockResolvedValue({
@@ -51,8 +54,8 @@ describe('createProp Action', () => {
         expect(prisma.prop.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 question: 'Will it rain?',
-                wagerAmount: 10,
-                type: 'HIT',
+                marketType: 'BINARY',
+                bettingDeadline: null,
             })
         }))
     })
@@ -61,8 +64,9 @@ describe('createProp Action', () => {
         const formData = new FormData()
         formData.append('leagueId', 'league-1')
         formData.append('question', 'Will it rain?')
-        formData.append('type', 'HIT')
-        formData.append('bettingDeadline', new Date().toISOString())
+        formData.append('marketType', 'BINARY')
+        formData.append('choices', 'Yes')
+        formData.append('choices', 'No')
 
             // Mock membership check returning null
             ; (prisma.leagueMember.findUnique as jest.Mock).mockResolvedValue(null)

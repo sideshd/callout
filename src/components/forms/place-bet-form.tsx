@@ -17,6 +17,16 @@ interface PlaceBetFormProps {
     maxCredits: number
 }
 
+const QUICK_AMOUNTS = [10, 50, 100]
+
+const CHOICE_COLORS = [
+    "var(--apple-green)",
+    "var(--apple-blue)",
+    "var(--apple-orange)",
+    "var(--apple-red)",
+    "var(--apple-purple)",
+]
+
 export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
@@ -38,44 +48,85 @@ export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps)
             <input type="hidden" name="propId" value={propId} />
 
             <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-300">Select Outcome</label>
+                <label className="text-xs font-black text-white/40 uppercase tracking-wider">Select Outcome</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {choices.map((choice) => (
-                        <label key={choice.id} className="cursor-pointer group">
-                            <input
-                                type="radio"
-                                name="choiceId"
-                                value={choice.id}
-                                className="peer sr-only"
-                                required
-                                onChange={() => setSelectedChoiceId(choice.id)}
-                            />
-                            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 hover:bg-slate-700 peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 transition-all relative overflow-hidden">
-                                <div className="flex justify-between items-start mb-2 relative z-10">
-                                    <span className="font-bold text-white group-hover:text-emerald-400 peer-checked:text-emerald-400 transition-colors">
-                                        {choice.text}
-                                    </span>
-                                    <span className="text-lg font-bold text-emerald-400">
-                                        {(choice.probability * 100).toFixed(1)}%
-                                    </span>
-                                </div>
-                                <div className="text-xs text-slate-500 relative z-10">
-                                    {choice.poolAmount} credits pool
-                                </div>
-
-                                {/* Progress bar visual */}
+                    {choices.map((choice, index) => {
+                        const color = CHOICE_COLORS[index % CHOICE_COLORS.length]
+                        const isSelected = selectedChoiceId === choice.id
+                        return (
+                            <label key={choice.id} className="cursor-pointer group">
+                                <input
+                                    type="radio"
+                                    name="choiceId"
+                                    value={choice.id}
+                                    className="peer sr-only"
+                                    required
+                                    onChange={() => setSelectedChoiceId(choice.id)}
+                                />
                                 <div
-                                    className="absolute bottom-0 left-0 h-1 bg-emerald-500/30 transition-all duration-500"
-                                    style={{ width: `${choice.probability * 100}%` }}
-                                ></div>
-                            </div>
-                        </label>
-                    ))}
+                                    className={`rounded-2xl p-4 transition-all relative overflow-hidden ${isSelected
+                                        ? "border-2"
+                                        : "wow-mini hover:bg-white/8"
+                                        }`}
+                                    style={isSelected ? {
+                                        borderColor: color,
+                                        background: `color-mix(in srgb, ${color} 12%, transparent)`
+                                    } : {}}
+                                >
+                                    <div className="flex justify-between items-start mb-2 relative z-10">
+                                        <span className="font-black text-white transition-colors">
+                                            {choice.text}
+                                        </span>
+                                        <span className="text-lg font-black" style={{ color }}>
+                                            {(choice.probability * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-white/30 relative z-10 font-bold">
+                                        {choice.poolAmount} credits pool
+                                    </div>
+
+                                    {/* Progress bar */}
+                                    <div
+                                        className="absolute bottom-0 left-0 h-1 transition-all duration-500 rounded-full"
+                                        style={{ width: `${choice.probability * 100}%`, backgroundColor: color, opacity: 0.4 }}
+                                    ></div>
+                                </div>
+                            </label>
+                        )
+                    })}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <label htmlFor="amount" className="text-sm font-medium text-slate-300">Wager Amount</label>
+            <div className="space-y-3">
+                <label htmlFor="amount" className="text-xs font-black text-white/40 uppercase tracking-wider">Wager Amount</label>
+
+                {/* Quick amount buttons */}
+                <div className="flex gap-2">
+                    {QUICK_AMOUNTS.map((qa) => (
+                        <button
+                            key={qa}
+                            type="button"
+                            onClick={() => setAmount(qa)}
+                            className={`px-4 py-2 rounded-xl text-sm font-black transition-all ${amount === qa
+                                ? "bg-[var(--apple-blue)] text-white"
+                                : "wow-mini text-white/60 hover:text-white hover:bg-white/8"
+                                }`}
+                        >
+                            ${qa}
+                        </button>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={() => setAmount(maxCredits)}
+                        className={`px-4 py-2 rounded-xl text-sm font-black transition-all ${amount === maxCredits
+                            ? "bg-[var(--apple-blue)] text-white"
+                            : "wow-mini text-white/60 hover:text-white hover:bg-white/8"
+                            }`}
+                    >
+                        Max
+                    </button>
+                </div>
+
                 <div className="relative">
                     <input
                         type="number"
@@ -86,17 +137,17 @@ export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps)
                         min="1"
                         max={maxCredits}
                         required
-                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                        className="input-apple"
                     />
-                    <span className="absolute right-4 top-3.5 text-sm text-slate-500">credits</span>
+                    <span className="absolute right-4 top-3.5 text-sm text-white/30 font-bold">credits</span>
                 </div>
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-white/30 font-bold">
                     <span>Balance: {maxCredits}</span>
                 </div>
             </div>
 
             {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <div className="text-[var(--apple-red)] text-sm bg-[var(--apple-red)]/10 p-3 rounded-2xl border border-[var(--apple-red)]/20">
                     {error}
                 </div>
             )}
@@ -104,7 +155,7 @@ export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps)
             <button
                 type="submit"
                 disabled={isPending || !selectedChoiceId}
-                className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl hover:bg-slate-100 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {isPending ? "Placing Bet..." : "Buy Shares"}

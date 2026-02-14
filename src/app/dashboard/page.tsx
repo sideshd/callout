@@ -3,8 +3,9 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, Users } from "lucide-react"
+import { Plus, Users, TrendingUp } from "lucide-react"
 import { Logo } from "@/components/ui/logo"
+import { DockNavigation } from "@/components/ui/dock-navigation"
 
 export default async function Dashboard() {
     const session = await getServerSession(authOptions)
@@ -29,40 +30,41 @@ export default async function Dashboard() {
     })
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white">
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-sm">
+        <div className="min-h-screen relative pb-32">
+            {/* Blur nav */}
+            <header className="blur-bg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
                         <Logo className="size-8" />
-                        <span>
-                            <span className="text-slate-300">Call</span>
-                            <span className="text-slate-400">Out</span>
-                        </span>
+                        <span className="wow-grad">CallOut</span>
                     </Link>
                     <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="text-slate-400 text-sm hover:text-white transition-colors">
+                        <span className="text-sm text-white/70">
                             {session.user.name || session.user.email}
-                        </Link>
-                        <Link href="/api/auth/signout" className="text-sm text-slate-400 hover:text-white">
+                        </span>
+                        <Link href="/api/auth/signout" className="text-sm text-white/50 hover:text-white/90 transition-colors">
                             Sign out
                         </Link>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-12 animate-fade-in">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold">Your Leagues</h1>
-                    <div className="flex gap-4">
+            <main className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+                <div className="flex items-center justify-between mb-8 animate-slide-up">
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tight mb-2 wow-grad">Your Leagues</h1>
+                        <p className="text-white/60">Trade on prediction markets with your friends</p>
+                    </div>
+                    <div className="flex gap-3">
                         <Link
                             href="/leagues/join"
-                            className="px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-sm font-medium"
+                            className="btn-quiet px-5 py-2.5 text-sm flex items-center gap-2"
                         >
                             Join League
                         </Link>
                         <Link
                             href="/leagues/create"
-                            className="px-4 py-2 rounded-full bg-white text-slate-900 hover:bg-slate-100 transition-colors text-sm font-medium flex items-center gap-2"
+                            className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2"
                         >
                             <Plus className="size-4" />
                             Create League
@@ -71,50 +73,56 @@ export default async function Dashboard() {
                 </div>
 
                 {memberships.length === 0 ? (
-                    <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl bg-white/5">
-                        <Users className="size-12 text-slate-500 mx-auto mb-4" />
-                        <h3 className="text-xl font-medium text-white mb-2">No leagues yet</h3>
-                        <p className="text-slate-400 mb-6">Create a league with friends or join one to start playing.</p>
+                    <div className="wow-shell rounded-3xl text-center py-32 animate-fade-in">
+                        <Users className="size-16 text-white/30 mx-auto mb-6" />
+                        <h3 className="text-2xl font-bold text-white mb-3">No leagues yet</h3>
+                        <p className="text-white/60 mb-8 max-w-md mx-auto">Create a league with friends or join one to start trading on prediction markets.</p>
                         <Link
                             href="/leagues/create"
-                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-slate-900 hover:bg-slate-100 transition-colors font-medium"
+                            className="btn-primary px-6 py-3 inline-flex items-center gap-2"
                         >
-                            <Plus className="size-4" />
+                            <Plus className="size-5" />
                             Create your first league
                         </Link>
                     </div>
                 ) : (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {memberships.map((membership) => (
+                        {memberships.map((membership, index) => (
                             <Link
                                 key={membership.leagueId}
                                 href={`/leagues/${membership.leagueId}`}
-                                className="group block bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:scale-[1.02]"
+                                className="market-card card-shadow-hover p-6 animate-slide-up"
+                                style={{ animationDelay: `${index * 0.05}s` }}
                             >
                                 <div className="flex items-start justify-between mb-4">
-                                    <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">
+                                    <h3 className="text-xl font-black text-white">
                                         {membership.league.name}
                                     </h3>
-                                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-white/10 text-slate-300">
-                                        {membership.credits} credits
-                                    </span>
+                                    <div className="pill px-3 py-1 text-xs font-bold text-white/90">
+                                        ${membership.credits.toFixed(0)}
+                                    </div>
                                 </div>
-                                <p className="text-slate-400 text-sm mb-6 line-clamp-2">
-                                    {membership.league.description || "No description"}
+                                <p className="text-white/60 text-sm mb-6 line-clamp-2">
+                                    {membership.league.description || "Prediction market league"}
                                 </p>
-                                <div className="flex items-center gap-4 text-sm text-slate-500">
-                                    <span className="flex items-center gap-1">
+                                <div className="flex items-center gap-4 text-sm text-white/50">
+                                    <span className="flex items-center gap-1.5">
                                         <Users className="size-4" />
-                                        {membership.league._count.members} members
+                                        {membership.league._count.members}
                                     </span>
                                     <span>•</span>
-                                    <span>{membership.league._count.props} props</span>
+                                    <span className="flex items-center gap-1.5">
+                                        <TrendingUp className="size-4" />
+                                        {membership.league._count.props} markets
+                                    </span>
                                 </div>
                             </Link>
                         ))}
                     </div>
                 )}
             </main>
+
+            <DockNavigation />
         </div>
     )
 }

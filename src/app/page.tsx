@@ -4,291 +4,181 @@ import {
   Trophy,
   TrendingUp,
   Sparkles,
+  ArrowRight,
+  BarChart3,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen relative">
       {/* Header */}
-      <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
+      <header className="blur-bg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo />
-            <span className="text-white tracking-tight font-medium text-xl">
-              <span className="text-slate-300">Call</span>
-              <span className="text-slate-400">Out</span>
+            <span className="text-white tracking-tight font-black text-xl wow-grad">
+              CallOut
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-slate-300 hover:text-white transition-colors font-medium">
+            <Link href="/login" className="text-white/70 hover:text-white transition-colors font-bold text-sm">
               Log in
             </Link>
-            <Link href="/register" className="bg-white text-slate-900 px-5 py-2 rounded-full hover:bg-slate-100 transition-all font-medium">
+            <Link href="/register" className="btn-primary px-5 py-2.5 text-sm">
               Get Started
             </Link>
           </div>
-        </div >
-      </header >
+        </div>
+      </header>
 
-      <main>
+      <main className="relative z-10">
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto px-6 py-20 lg:py-32">
-          <div className="max-w-2xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-slate-300 mb-4">
-              <Sparkles className="size-4" />
-              <span className="text-sm">Play with virtual credits, win real bragging rights</span>
+          <div className="max-w-3xl mx-auto text-center space-y-8 animate-slide-up">
+            <div className="pill inline-flex items-center gap-2 px-4 py-2 text-sm">
+              <Sparkles className="size-4 text-[var(--apple-purple)]" />
+              <span className="font-bold">Trade on outcomes. Compete with friends.</span>
             </div>
-            <h1 className="text-white text-5xl lg:text-7xl tracking-tight font-medium">
-              <span className="text-slate-300">Call</span>
-              <span className="text-slate-400">Out</span>
+            <h1 className="text-white text-6xl lg:text-8xl tracking-tight font-black">
+              Social <span className="wow-grad">Prediction</span> Markets
             </h1>
-            <p className="text-slate-300 text-xl max-w-xl mx-auto">
-              Bet on yourself. And your friends.
+            <p className="text-white/70 text-xl max-w-2xl mx-auto leading-relaxed">
+              Create prediction markets with friends. Place bets. Watch the odds shift in real-time. May the best trader win.
             </p>
             <div className="flex gap-4 justify-center pt-4">
-              <Link href="/dashboard" className="bg-white text-slate-900 px-8 py-4 rounded-full hover:bg-slate-100 transition-all transform hover:scale-105 font-medium">
-                Start a league
+              <Link href="/register" className="btn-primary px-8 py-4 text-lg flex items-center gap-2 group">
+                Get Started
+                <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <button className="border-2 border-white/20 text-white px-8 py-4 rounded-full hover:bg-white/10 backdrop-blur-sm transition-all font-medium">
-                View demo
-              </button>
+              <Link href="/login" className="btn-quiet px-8 py-4 text-lg">
+                Log in
+              </Link>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
+        {/* Features */}
         <section className="max-w-7xl mx-auto px-6 py-20">
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<Users className="size-8 text-slate-400" />}
-              title="Leagues"
-              description="Create private groups with your friends. Keep the fun contained to people who actually get the jokes."
-            />
-            <FeatureCard
-              icon={<Target className="size-8 text-slate-400" />}
-              title="Props"
-              description="Make bets on anything – who'll be late, who'll bail, who'll actually follow through. All with virtual credits."
-            />
-            <FeatureCard
-              icon={<Trophy className="size-8 text-amber-400" />}
-              title="Leaderboards"
-              description="Track who's got the best instincts. Bragging rights included, real money not involved."
-            />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="wow-shell rounded-3xl p-8 card-shadow-hover">
+              <div className="size-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-6">
+                <BarChart3 className="size-7 text-white" />
+              </div>
+              <h3 className="text-2xl font-black text-white mb-3">Live Markets</h3>
+              <p className="text-white/60 leading-relaxed">
+                Watch probabilities update in real-time as bets pour in. Dynamic odds with automated market maker.
+              </p>
+            </div>
+
+            <div className="wow-shell rounded-3xl p-8 card-shadow-hover">
+              <div className="size-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-6">
+                <Users className="size-7 text-white" />
+              </div>
+              <h3 className="text-2xl font-black text-white mb-3">Private Leagues</h3>
+              <p className="text-white/60 leading-relaxed">
+                Create leagues with friends. Everyone starts with equal credits. No real money, just bragging rights.
+              </p>
+            </div>
+
+            <div className="wow-shell rounded-3xl p-8 card-shadow-hover">
+              <div className="size-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-6">
+                <Trophy className="size-7 text-white" />
+              </div>
+              <h3 className="text-2xl font-black text-white mb-3">Leaderboards</h3>
+              <p className="text-white/60 leading-relaxed">
+                Compete to be the top trader. Track your portfolio. See who has the best predictions.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* League Screenshot Section */}
+        {/* How It Works */}
         <section className="max-w-7xl mx-auto px-6 py-20">
-          <div className="text-center mb-12">
-            <h2 className="text-white text-3xl lg:text-5xl mb-4 tracking-tight font-medium">
-              See how it looks
-            </h2>
-            <p className="text-slate-300 text-lg">
-              A clean, simple board where all the action happens
-            </p>
+          <div className="text-center mb-16">
+            <h2 className="text-5xl font-black text-white mb-4">How it <span className="wow-grad">Works</span></h2>
+            <p className="text-white/60 text-xl">Simple, fast, and addictive</p>
           </div>
 
-          {/* Browser Frame */}
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-            {/* Browser Chrome */}
-            <div className="bg-slate-900/80 px-4 py-3 flex items-center gap-2 border-b border-white/10">
-              <div className="flex gap-2">
-                <div className="size-3 rounded-full bg-red-400"></div>
-                <div className="size-3 rounded-full bg-yellow-400"></div>
-                <div className="size-3 rounded-full bg-green-400"></div>
-              </div>
-              <div className="flex-1 ml-4">
-                <div className="bg-slate-700/50 rounded-lg px-4 py-1.5 text-slate-400 text-sm max-w-md">
-                  callout.app/league/squad-2025
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div className="flex gap-4">
+                <div className="pill size-12 flex-shrink-0 flex items-center justify-center font-black text-lg">
+                  1
                 </div>
-              </div>
-            </div>
-
-            {/* Browser Content */}
-            <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800">
-              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-white text-2xl mb-1 font-medium">
-                    The Squad 2025
-                  </h3>
-                  <p className="text-slate-400">
-                    14 members · 47 active props
-                  </p>
+                  <h3 className="text-xl font-black text-white mb-2">Create a League</h3>
+                  <p className="text-white/60">Invite your friends. Everyone starts with $1000 in play money.</p>
                 </div>
-                <button className="bg-gradient-to-r from-pink-500 to-violet-500 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:shadow-pink-500/50 transition-all font-medium">
-                  New Prop
-                </button>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <LeaguePropCard
-                  title="Alex will respond to texts within 24hrs this week"
-                  creator="Sarah"
-                  pool="2,450"
-                  status="open"
-                />
-                <LeaguePropCard
-                  title="Chris actually cooks dinner instead of ordering"
-                  creator="Jordan"
-                  pool="1,820"
-                  status="open"
-                />
-                <LeaguePropCard
-                  title="Taylor beats their screen time goal"
-                  creator="Mike"
-                  pool="3,100"
-                  status="hot"
-                />
-                <LeaguePropCard
-                  title="Jamie finishes their project before deadline"
-                  creator="Emma"
-                  pool="2,675"
-                  status="open"
-                />
+              <div className="flex gap-4">
+                <div className="pill size-12 flex-shrink-0 flex items-center justify-center font-black text-lg">
+                  2
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white mb-2">Make Predictions</h3>
+                  <p className="text-white/60">Create markets on anything. Who'll win the game? Who'll be late to dinner?</p>
+                </div>
               </div>
 
-              {/* Leaderboard Preview */}
-              <div className="mt-8 bg-white/95 backdrop-blur rounded-2xl p-6 border border-white/20">
-                <div className="flex items-center gap-2 mb-4">
-                  <Trophy className="size-5 text-amber-500" />
-                  <span className="text-slate-900 font-medium">
-                    Top Predictors
-                  </span>
+              <div className="flex gap-4">
+                <div className="pill size-12 flex-shrink-0 flex items-center justify-center font-black text-lg">
+                  3
                 </div>
-                <div className="space-y-3">
-                  <LeaderboardRow
-                    rank={1}
-                    name="Sarah K."
-                    credits="12,450"
-                    trend="up"
-                  />
-                  <LeaderboardRow
-                    rank={2}
-                    name="Mike R."
-                    credits="11,230"
-                    trend="up"
-                  />
-                  <LeaderboardRow
-                    rank={3}
-                    name="Jordan L."
-                    credits="9,875"
-                    trend="down"
-                  />
+                <div>
+                  <h3 className="text-xl font-black text-white mb-2">Trade Shares</h3>
+                  <p className="text-white/60">Buy and sell shares. Watch odds update in real-time based on the market.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="pill size-12 flex-shrink-0 flex items-center justify-center font-black text-lg">
+                  4
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white mb-2">Win Bragging Rights</h3>
+                  <p className="text-white/60">Resolve markets. Winners cash out. Climb the leaderboard.</p>
                 </div>
               </div>
             </div>
+
+            <div className="wow-shell rounded-3xl p-12 text-center card-shadow">
+              <Zap className="size-20 text-[var(--apple-blue)] mx-auto mb-6" />
+              <h3 className="text-3xl font-black text-white mb-4">Ready to Play?</h3>
+              <p className="text-white/60 mb-8">Join thousands trading on prediction markets</p>
+              <Link href="/register" className="btn-primary px-8 py-4 text-lg inline-flex items-center gap-2">
+                Create Account
+                <ArrowRight className="size-5" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="max-w-7xl mx-auto px-6 py-32">
+          <div className="wow-shell rounded-[2.5rem] p-16 text-center card-shadow">
+            <h2 className="text-5xl lg:text-6xl font-black text-white mb-6">
+              Start Trading <span className="wow-grad">Today</span>
+            </h2>
+            <p className="text-white/70 text-xl mb-10 max-w-2xl mx-auto">
+              Free to use. No credit card required. Invite your friends and start making predictions.
+            </p>
+            <Link href="/register" className="btn-primary px-10 py-5 text-xl inline-flex items-center gap-3">
+              Get Started
+              <ArrowRight className="size-6" />
+            </Link>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 mt-32">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex justify-center gap-8 text-slate-400 text-sm">
-            <Link
-              href="#"
-              className="hover:text-white transition-colors"
-            >
-              About
-            </Link>
-            <span>·</span>
-            <Link
-              href="#"
-              className="hover:text-white transition-colors"
-            >
-              Terms
-            </Link>
-            <span>·</span>
-            <Link
-              href="#"
-              className="hover:text-white transition-colors"
-            >
-              Contact
-            </Link>
-          </div>
+      <footer className="border-t border-white/10 bg-black/20 backdrop-blur-sm mt-20">
+        <div className="max-w-7xl mx-auto px-6 py-12 text-center text-white/50 text-sm">
+          <p>© 2026 CallOut. No real money, all real fun.</p>
         </div>
       </footer>
-    </div >
-  );
-}
-
-// Component for feature cards
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 hover:bg-white/15 hover:scale-105 transition-all">
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-white text-xl mb-3 font-medium">{title}</h3>
-      <p className="text-slate-300">{description}</p>
-    </div>
-  );
-}
-
-// Component for league prop cards in browser mockup
-function LeaguePropCard({
-  title,
-  creator,
-  pool,
-  status,
-}: {
-  title: string;
-  creator: string;
-  pool: string;
-  status: string;
-}) {
-  return (
-    <div className="bg-slate-700/50 backdrop-blur rounded-2xl p-4 border border-slate-600/50 hover:border-violet-500/50 transition-all">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-white text-sm flex-1 font-medium">{title}</p>
-        {status === "hot" && (
-          <div className="bg-gradient-to-r from-pink-500 to-violet-500 p-1 rounded-full">
-            <TrendingUp className="size-3 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-400">by {creator}</span>
-        <span className="text-emerald-400 font-medium">{pool} credits</span>
-      </div>
-    </div>
-  );
-}
-
-// Component for leaderboard rows
-function LeaderboardRow({
-  rank,
-  name,
-  credits,
-  trend,
-}: {
-  rank: number;
-  name: string;
-  credits: string;
-  trend: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span className="text-slate-500 w-6 font-medium">{rank}</span>
-        <span className="text-slate-900 font-medium">{name}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-slate-900 font-medium">{credits}</span>
-        {trend === "up" ? (
-          <TrendingUp className="size-4 text-emerald-500" />
-        ) : (
-          <TrendingUp className="size-4 text-rose-500 rotate-180" />
-        )}
-      </div>
     </div>
   );
 }
