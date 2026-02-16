@@ -4,17 +4,16 @@ import { ArrowLeft } from "lucide-react"
 
 export default function CreateLeaguePage() {
     return (
-        <div className="min-h-screen flex items-center justify-center p-6">
-            <div className="w-full max-w-md">
-                <Link href="/dashboard" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-8 transition-colors">
+        <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-6">
+            <div className="w-full max-w-md relative z-10">
+                <Link href="/dashboard" className="inline-flex items-center gap-2 text-[var(--muted)] hover:text-white mb-8 transition-colors text-sm font-bold">
                     <ArrowLeft className="size-4" />
                     Back to Dashboard
                 </Link>
 
-                <div className="glass rounded-3xl p-8 card-shadow">
-                    <h1 className="text-2xl font-black mb-2 wow-grad">Create a League</h1>
-                    <p className="text-white/50 mb-8">Start a private group for you and your friends.</p>
-
+                <div className="wow-shell rounded-[26px] p-8">
+                    <h1 className="text-3xl font-black tracking-tight mb-2">Create League</h1>
+                    <p className="text-[var(--muted)] text-sm mb-8">Start a new prediction market league with friends.</p>
                     <CreateLeagueForm />
                 </div>
             </div>

@@ -1,18 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { League, LeagueMember, Prop, Activity, User } from "@prisma/client"
 import { formatDistanceToNow } from "date-fns"
-import { Trophy, TrendingUp, Settings, Users, Activity as ActivityIcon, MessageSquare, LogOut, Trash2, Edit2, Check, X } from "lucide-react"
+import { TrendingUp, Settings, Users, Activity as ActivityIcon, Bell, LogOut, Trash2, Edit2, Check, X, Trophy, FileText, MessageCircle, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { updateLeagueSettings, adminAction, updateMemberCredits, leaveLeague, deleteLeague, markNotificationRead, markAllNotificationsRead } from "@/app/actions"
 import { useRouter } from "next/navigation"
-import { useTransition } from "react"
-import { Bell } from "lucide-react"
+import { DockNavigation } from "@/components/ui/dock-navigation"
 
 type LeagueTabsProps = {
     league: League & { members: (LeagueMember & { user: User })[] }
-    // Updated Prop type to include choices
     activeProps: (Prop & { creator: { user: User }, bets: any[], choices: any[], targetPlayer?: { user: User } | null })[]
     pastProps: (Prop & { creator: { user: User }, bets: any[], choices: any[], targetPlayer?: { user: User } | null })[]
     activities: (Activity & { user: User })[]
@@ -21,14 +19,24 @@ type LeagueTabsProps = {
     isOwner: boolean
 }
 
+const OUTCOME_COLORS = ['#ff3b30', '#007aff', '#34c759', '#ff9500', '#af52de', '#5856d6']
+const RANK_COLORS = ['#ffd700', '#c0c0c0', '#cd7f32']
+
+function formatCurrency(n: number) {
+    return '$' + Math.round(n).toLocaleString()
+}
+
 export function LeagueTabs({ league, activeProps, pastProps, activities, notifications, currentUserId, isOwner }: LeagueTabsProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
-    const [activeTab, setActiveTab] = useState<"board" | "feed" | "notifications" | "admin" | "settings">("board")
-    const [editingCredits, setEditingCredits] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState<string>("markets")
     const [filterBetStatus, setFilterBetStatus] = useState<"ALL" | "BET_ON" | "NOT_BET_ON">("ALL")
+    const [filterCategory, setFilterCategory] = useState<string>("ALL")
+    const [socialSubTab, setSocialSubTab] = useState<"ACTIVITY" | "COMMENTS">("ACTIVITY")
+    const [editingCredits, setEditingCredits] = useState<string | null>(null)
+    const [showAdminPanel, setShowAdminPanel] = useState(false)
 
-    const unreadNotificationsCount = notifications.filter(n => !n.read).length
+    const unreadNotificationsCount = notifications.filter((n: any) => !n.read).length
 
     const handleAction = async (action: (formData: FormData) => Promise<void>, formData: FormData) => {
         startTransition(async () => {
@@ -37,520 +45,657 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
         })
     }
 
+    // Categories from active props
+    const categories = Array.from(new Set(activeProps.map(p => (p as any).category || 'Uncategorized'))).sort()
+
     const filteredProps = activeProps.filter(prop => {
-        // Filter by Bet Status
         const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
         if (filterBetStatus === "BET_ON" && !hasBet) return false
         if (filterBetStatus === "NOT_BET_ON" && hasBet) return false
-
+        if (filterCategory !== "ALL") {
+            const cat = (prop as any).category || 'Uncategorized'
+            if (cat !== filterCategory) return false
+        }
         return true
     })
 
+    // Sorted members for leaderboard
+    const sortedMembers = [...league.members].sort((a, b) => b.credits - a.credits)
+
+    // Portfolio: user's bets across all active props
+    const userPositions = activeProps.flatMap(prop => {
+        const userBetsOnProp = prop.bets.filter((b: any) => b.userId === currentUserId)
+        if (userBetsOnProp.length === 0) return []
+        return userBetsOnProp.map((bet: any) => ({
+            prop,
+            bet,
+            choice: prop.choices.find((c: any) => c.id === bet.choiceId),
+        }))
+    }).filter(p => p.choice)
+
+    const currentMember = league.members.find(m => m.userId === currentUserId)
+    const balance = currentMember?.credits || 0
+
+    // Portfolio stats
+    const totalInvested = userPositions.reduce((sum, p) => sum + (p.bet.amount || 0), 0)
+    const totalMarkValue = userPositions.reduce((sum, p) => {
+        const shares = p.bet.shares || (p.bet.amount / (p.choice.probability || 0.5))
+        return sum + shares * (p.choice.probability || 0)
+    }, 0)
+    const unrealizedPnL = totalMarkValue - totalInvested
+
     return (
         <div>
-            {/* Tabs Header */}
-            <div className="flex items-center gap-2 mb-8 overflow-x-auto p-1 glass rounded-2xl">
-                <button
-                    onClick={() => setActiveTab("board")}
-                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "board" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
-                >
-                    Board
-                </button>
-                <button
-                    onClick={() => setActiveTab("feed")}
-                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "feed" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
-                >
-                    Activity
-                </button>
-                <button
-                    onClick={() => setActiveTab("notifications")}
-                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap flex items-center gap-2 ${activeTab === "notifications" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
-                >
-                    Notifications
-                    {unreadNotificationsCount > 0 && (
-                        <span className="bg-[var(--apple-red)] text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
-                            {unreadNotificationsCount}
-                        </span>
-                    )}
-                </button>
-                {isOwner && (
-                    <button
-                        onClick={() => setActiveTab("admin")}
-                        className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "admin" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
-                    >
-                        Admin
-                    </button>
-                )}
-                <button
-                    onClick={() => setActiveTab("settings")}
-                    className={`px-4 py-2 text-sm font-black transition-all rounded-xl whitespace-nowrap ${activeTab === "settings" ? "bg-[var(--apple-blue)] text-white shadow-lg" : "text-white/50 hover:text-white hover:bg-white/5"}`}
-                >
-                    Settings
-                </button>
-            </div>
-
-            {/* Tab Content */}
-            {activeTab === "board" && (
-                <div className="grid lg:grid-cols-3 gap-8">
-                    {/* Main Content: Props */}
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* Active Props */}
+            {/* ===== MARKETS TAB ===== */}
+            {activeTab === "markets" && (
+                <div className="animate-fade-in">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
                         <div>
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                                <h2 className="text-xl font-black flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-[var(--apple-green)] animate-pulse"></span>
-                                    Active Markets
-                                </h2>
-
-                                {/* Filters */}
-                                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-                                    <select
-                                        value={filterBetStatus}
-                                        onChange={(e) => setFilterBetStatus(e.target.value as any)}
-                                        className="glass rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--apple-blue)] appearance-none pr-8"
-                                    >
-                                        <option value="ALL">All Markets</option>
-                                        <option value="BET_ON">My Positions</option>
-                                        <option value="NOT_BET_ON">Unseen</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {filteredProps.length === 0 ? (
-                                <div className="text-center py-12 glass rounded-3xl">
-                                    <p className="text-white/40 mb-4">No active markets found.</p>
-                                    {league.allowPropCreation || isOwner ? (
-                                        <Link
-                                            href={`/leagues/${league.id}/props/create`}
-                                            className="text-[var(--apple-blue)] hover:text-[var(--apple-blue)]/80 font-black"
-                                        >
-                                            Create one?
-                                        </Link>
-                                    ) : (
-                                        <p className="text-xs text-white/30">Market creation is currently disabled.</p>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {filteredProps.map((prop) => {
-                                        const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
-                                        const totalLiquidity = prop.liquidity || prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)
-                                        const topChoice = prop.choices?.sort((a: any, b: any) => b.probability - a.probability)[0]
-
-                                        return (
-                                            <Link
-                                                key={prop.id}
-                                                href={`/props/${prop.id}`}
-                                                className="block glass rounded-3xl p-6 hover:bg-white/8 transition-all group card-shadow"
-                                            >
-                                                <div className="flex items-start justify-between gap-4 mb-4">
-                                                    <div>
-                                                        <h3 className="text-lg font-black text-white group-hover:text-[var(--apple-blue)] transition-colors mb-1">
-                                                            {prop.question}
-                                                        </h3>
-                                                        {topChoice && (
-                                                            <div className="text-xs text-white/40">
-                                                                Top: <span className="text-[var(--apple-green)] font-black">{topChoice.text}</span> ({(topChoice.probability * 100).toFixed(0)}%)
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex flex-col items-end gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="bg-[var(--apple-purple)]/15 text-[var(--apple-purple)] text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                                                Market
-                                                            </span>
-                                                            {prop.targetPlayer && (
-                                                                <span className="glass text-white/70 text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                                    <span>@</span>
-                                                                    {prop.targetPlayer.user.name}
-                                                                </span>
-                                                            )}
-                                                            {prop.status === "LOCKED" && (
-                                                                <span className="bg-[var(--apple-orange)]/15 text-[var(--apple-orange)] text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                                                    Locked
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {hasBet && (
-                                                            <span className="bg-[var(--apple-green)]/15 text-[var(--apple-green)] text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                                <Check className="size-3" />
-                                                                Position
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between text-sm text-white/40">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="size-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[10px] text-white font-black">
-                                                            {prop.creator.user.name?.[0] || "?"}
-                                                        </div>
-                                                        <span className="font-bold">{prop.creator.user.name}</span>
-                                                        <span>•</span>
-                                                        <span>{formatDistanceToNow(new Date(prop.createdAt), { addSuffix: true })}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 text-[var(--apple-green)] font-black">
-                                                        <TrendingUp className="size-4" />
-                                                        <span>{totalLiquidity} vol</span>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        )
-                                    })}
-                                </div>
+                            <div className="text-2xl font-black">Markets</div>
+                            <div className="text-sm text-[var(--muted)]">Trade on predictions in your league</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={filterBetStatus}
+                                onChange={(e) => setFilterBetStatus(e.target.value as any)}
+                                className="input-apple !py-2 !px-3 text-sm"
+                            >
+                                <option value="ALL">All Markets</option>
+                                <option value="BET_ON">My Positions</option>
+                                <option value="NOT_BET_ON">Unseen</option>
+                            </select>
+                            {categories.length > 1 && (
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="input-apple !py-2 !px-3 text-sm"
+                                >
+                                    <option value="ALL">All categories</option>
+                                    {categories.map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
                             )}
                         </div>
-
-                        {/* Past Props */}
-                        {pastProps.length > 0 && (
-                            <div>
-                                <h2 className="text-xl font-black mb-4 text-white/40">Resolved</h2>
-                                <div className="space-y-4 opacity-75 hover:opacity-100 transition-opacity">
-                                    {pastProps.map((prop) => (
-                                        <Link
-                                            key={prop.id}
-                                            href={`/props/${prop.id}`}
-                                            className="block glass rounded-3xl p-6 hover:bg-white/8 transition-all"
-                                        >
-                                            <div className="flex items-start justify-between gap-4 mb-2">
-                                                <h3 className="text-lg font-black text-white/70">
-                                                    {prop.question}
-                                                </h3>
-                                                <span className={`text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${prop.status === "RESOLVED" ? "bg-[var(--apple-blue)]/15 text-[var(--apple-blue)]" : "bg-[var(--apple-red)]/15 text-[var(--apple-red)]"
-                                                    }`}>
-                                                    {prop.status}
-                                                </span>
-                                            </div>
-                                            <div className="text-sm text-white/30">
-                                                {prop.resolutionDeadline ? `Resolved ${formatDistanceToNow(new Date(prop.resolutionDeadline), { addSuffix: true })}` : ""}
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Sidebar: Leaderboard */}
-                    <div className="space-y-6">
-                        <div className="glass rounded-3xl p-6 card-shadow">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-2">
-                                    <Trophy className="size-5 text-[var(--apple-orange)]" />
-                                    <h2 className="font-black text-lg">Leaderboard</h2>
-                                </div>
-                                <Link href={`/leagues/${league.id}/leaderboard`} className="text-xs text-[var(--apple-blue)] hover:text-[var(--apple-blue)]/80 font-black">
-                                    View All
+                    {filteredProps.length === 0 ? (
+                        <div className="glass rounded-3xl p-16 text-center border border-white/5">
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 mx-auto mb-6 flex items-center justify-center border border-white/10">
+                                <TrendingUp className="size-8 text-[var(--muted)]" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">No active markets</h3>
+                            <p className="text-[var(--muted)]">Start trading to build your portfolio.</p>
+                            {(league.allowPropCreation || isOwner) && (
+                                <Link href={`/leagues/${league.id}/props/create`} className="btn-primary px-7 py-4 mt-6 inline-block">
+                                    Create Market
                                 </Link>
-                            </div>
-
-                            <div className="space-y-4">
-                                {league.members.map((member, index) => (
-                                    <div key={member.id} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-6 text-center font-black ${index === 0 ? "text-[var(--apple-orange)]" :
-                                                index === 1 ? "text-white/60" :
-                                                    index === 2 ? "text-[var(--apple-orange)]/60" : "text-white/30"
-                                                }`}>
-                                                {index + 1}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
-                                                    {member.user.name?.[0] || "?"}
-                                                </div>
-                                                <span className={member.userId === currentUserId ? "text-[var(--apple-green)] font-black" : "text-white/80 font-bold"}>
-                                                    {member.user.name}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <span className="font-mono font-black text-[var(--apple-green)]">{member.credits}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === "feed" && (
-                <div className="max-w-2xl mx-auto">
-                    {!league.showActivityFeed && !isOwner ? (
-                        <div className="text-center py-12">
-                            <ActivityIcon className="size-12 text-slate-600 mx-auto mb-4" />
-                            <p className="text-slate-400">Activity feed is currently disabled.</p>
+                            )}
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {activities.length === 0 ? (
-                                <div className="text-center py-12 text-slate-500">
-                                    No activity yet.
-                                </div>
-                            ) : (
-                                activities.map((activity) => (
-                                    <div key={activity.id} className="glass rounded-2xl p-4 flex items-start gap-4">
-                                        <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-black shrink-0 border border-white/20">
-                                            {activity.user.name?.[0] || "?"}
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {filteredProps.map((prop, index) => {
+                                const hasBet = prop.bets.some(bet => bet.userId === currentUserId)
+                                const totalLiquidity = prop.liquidity || prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)
+                                const topChoice = prop.choices?.sort((a: any, b: any) => b.probability - a.probability)[0]
+                                const category = (prop as any).category
+                                const person = (prop as any).person
+
+                                return (
+                                    <Link
+                                        key={prop.id}
+                                        href={`/props/${prop.id}`}
+                                        className="w-full text-left wow-shell rounded-[22px] p-5 hover:border-white/20 transition border border-white/10 bg-white/5 block stagger-item"
+                                        style={{ animationDelay: `${index * 0.06}s` }}
+                                    >
+                                        <div className="flex justify-between items-start gap-4 mb-3">
+                                            <div className="min-w-0">
+                                                <h3 className="font-black text-lg leading-snug truncate">{prop.question}</h3>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {category && (
+                                                        <span className="chip text-[11px] text-white/70">{category}</span>
+                                                    )}
+                                                    {person && (
+                                                        <span className="chip text-[11px] text-white/70">👤 {person}</span>
+                                                    )}
+                                                    {prop.status === 'LOCKED' && (
+                                                        <span className="chip text-[11px] text-[var(--warn)]">Locked</span>
+                                                    )}
+                                                    {hasBet && (
+                                                        <span className="chip text-[11px] text-[var(--good)]">Position</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-[var(--muted)] mt-1 flex items-center gap-2">
+                                                    <span className="font-mono">{formatDistanceToNow(new Date(prop.createdAt), { addSuffix: true })}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className="text-xs text-[var(--muted)]">Volume</div>
+                                                <div className="font-black">{formatCurrency(totalLiquidity)}</div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm">
-                                                <span className="font-bold text-white">{activity.user.name}</span>
-                                                <span className="text-white/50"> {activity.content}</span>
-                                            </p>
-                                            <p className="text-xs text-white/30 mt-1">
-                                                {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
-                                            </p>
+
+                                        {/* Outcome pills */}
+                                        <div className="flex items-center justify-between gap-3 mt-2">
+                                            <div className="flex items-center gap-3 text-xs overflow-hidden">
+                                                {prop.choices?.slice(0, 3).map((choice: any, i: number) => (
+                                                    <div key={choice.id} className="flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: OUTCOME_COLORS[i % OUTCOME_COLORS.length] }}></div>
+                                                        <span className="font-semibold truncate">{choice.text}</span>
+                                                        <span className="text-[var(--muted)] font-mono">{(choice.probability * 100).toFixed(0)}%</span>
+                                                    </div>
+                                                ))}
+                                                {(prop.choices?.length || 0) > 3 && (
+                                                    <span className="text-[var(--muted)] font-mono">+{(prop.choices?.length || 0) - 3}</span>
+                                                )}
+                                            </div>
+                                            <span className="btn-quiet px-3 py-1.5 text-xs shrink-0">Trade →</span>
                                         </div>
-                                    </div>
-                                ))
-                            )}
+                                    </Link>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
             )}
 
-            {activeTab === "notifications" && (
-                <div className="max-w-2xl mx-auto">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-bold">Notifications</h2>
-                        {unreadNotificationsCount > 0 && (
-                            <button
-                                onClick={() => startTransition(async () => {
-                                    await markAllNotificationsRead(league.id)
-                                    router.refresh()
-                                })}
-                                className="text-xs text-emerald-400 hover:text-emerald-300"
-                                disabled={isPending}
-                            >
-                                Mark all read
-                            </button>
-                        )}
-                    </div>
-                    <div className="space-y-4">
-                        {notifications.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                No notifications.
+            {/* ===== PORTFOLIO TAB ===== */}
+            {activeTab === "portfolio" && (
+                <div className="animate-fade-in">
+                    {userPositions.length === 0 ? (
+                        <div className="glass rounded-3xl p-16 text-center border border-white/5">
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 mx-auto mb-6 flex items-center justify-center">
+                                <FileText className="size-8 text-[var(--muted)]" />
                             </div>
-                        ) : (
-                            notifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className={`bg-white/5 border ${notification.read ? 'border-white/5 opacity-60' : 'border-emerald-500/30'} rounded-xl p-4 flex items-start gap-4 transition-all hover:bg-white/10`}
-                                >
-                                    <div className={`size-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${notification.type === 'BET_WON' ? 'bg-emerald-500/20 text-emerald-400' : notification.type === 'BET_LOST' ? 'bg-red-500/20 text-red-400' : notification.type === 'PROP_ON_YOU' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                        <Bell className="size-4" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm text-white mb-1">{notification.message}</p>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-xs text-slate-500">
-                                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                            </p>
-                                            {!notification.read && (
-                                                <button
-                                                    onClick={() => startTransition(async () => {
-                                                        await markNotificationRead(notification.id, league.id)
-                                                        router.refresh()
-                                                    })}
-                                                    className="text-xs text-emerald-400 hover:text-emerald-300"
-                                                    disabled={isPending}
-                                                >
-                                                    Mark read
-                                                </button>
-                                            )}
-                                        </div>
+                            <h3 className="text-xl font-bold mb-2">No positions</h3>
+                            <p className="text-[var(--muted)]">Start trading to build your portfolio.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-5">
+                            {/* Summary cards */}
+                            <div className="grid md:grid-cols-4 gap-3">
+                                <div className="glass rounded-2xl p-5 border border-white/10">
+                                    <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Cash</div>
+                                    <div className="text-2xl font-black mt-1">{formatCurrency(balance)}</div>
+                                </div>
+                                <div className="glass rounded-2xl p-5 border border-white/10">
+                                    <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Market Value</div>
+                                    <div className="text-2xl font-black mt-1">{formatCurrency(totalMarkValue)}</div>
+                                </div>
+                                <div className="glass rounded-2xl p-5 border border-white/10">
+                                    <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Invested</div>
+                                    <div className="text-2xl font-black mt-1">{formatCurrency(totalInvested)}</div>
+                                </div>
+                                <div className="glass rounded-2xl p-5 border border-white/10">
+                                    <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Unrealized P&L</div>
+                                    <div className={`text-2xl font-black mt-1 ${unrealizedPnL >= 0 ? 'text-[var(--apple-green)]' : 'text-[var(--apple-red)]'}`}>
+                                        {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
                                     </div>
                                 </div>
-                            ))
-                        )}
+                            </div>
+
+                            {/* Position cards */}
+                            <div className="space-y-3">
+                                {userPositions.map((pos, index) => {
+                                    const shares = pos.bet.shares || (pos.bet.amount / (pos.choice.probability || 0.5))
+                                    const costBasis = pos.bet.amount || 0
+                                    const markValue = shares * (pos.choice.probability || 0)
+                                    const pnl = markValue - costBasis
+                                    const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0
+                                    const isProfit = pnl >= 0
+                                    const nowPct = ((pos.choice.probability || 0) * 100).toFixed(0)
+                                    const choiceIndex = pos.prop.choices.findIndex((c: any) => c.id === pos.choice.id)
+                                    const choiceColor = OUTCOME_COLORS[choiceIndex % OUTCOME_COLORS.length]
+
+                                    return (
+                                        <Link
+                                            key={pos.bet.id}
+                                            href={`/props/${pos.prop.id}`}
+                                            className="glass rounded-2xl p-6 card-shadow border border-white/5 stagger-item cursor-pointer hover:border-[var(--apple-blue)]/30 transition block"
+                                            style={{ animationDelay: `${index * 0.06}s` }}
+                                        >
+                                            <div className="flex justify-between items-start gap-4 mb-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-black truncate">{pos.prop.question}</div>
+                                                    <div className="mt-2 flex items-center gap-2">
+                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: choiceColor }}></div>
+                                                        <div className="font-black" style={{ color: choiceColor }}>{pos.choice.text}</div>
+                                                        <span className="chip text-[11px] text-[var(--muted)]">{(pos.prop as any).category || 'Uncategorized'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-5 gap-4 pt-4 border-t border-white/5">
+                                                <div>
+                                                    <div className="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">Shares</div>
+                                                    <div className="font-black">{shares.toFixed(2)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">Cost</div>
+                                                    <div className="font-black">{formatCurrency(costBasis)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">Now</div>
+                                                    <div className="font-black">{nowPct}%</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">Mark</div>
+                                                    <div className="font-black">{formatCurrency(markValue)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">P&L</div>
+                                                    <div className={`font-black text-lg ${isProfit ? 'text-[var(--apple-green)]' : 'text-[var(--apple-red)]'}`}>
+                                                        {isProfit ? '+' : ''}{pnlPct.toFixed(0)}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ===== LEADERBOARD TAB ===== */}
+            {activeTab === "leaderboard" && (
+                <div className="animate-fade-in max-w-4xl mx-auto">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
+                        <div>
+                            <div className="text-sm text-[var(--muted)] font-bold uppercase tracking-wider">Leaderboard</div>
+                            <div className="text-2xl font-black">Net Worth</div>
+                            <div className="text-xs text-[var(--muted)] mt-1">Starting funds: {formatCurrency(league.startingCredits)}</div>
+                        </div>
+                    </div>
+
+                    <div className="glass rounded-3xl border border-white/5 overflow-hidden">
+                        <div className="divide-y divide-white/5">
+                            {sortedMembers.map((member, idx) => {
+                                const rankColor = idx < 3 ? RANK_COLORS[idx] : '#636366'
+                                const profit = member.credits - league.startingCredits
+                                const isCurrentUser = member.userId === currentUserId
+
+                                return (
+                                    <div
+                                        key={member.id}
+                                        className={`px-7 py-6 flex items-center justify-between ${isCurrentUser ? 'bg-[var(--apple-blue)]/5 border-l-4 border-[var(--apple-blue)]' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                className="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg"
+                                                style={{ background: `${rankColor}22`, color: rankColor }}
+                                            >
+                                                {idx + 1}
+                                            </div>
+                                            <div>
+                                                <div className="font-black flex items-center gap-2">
+                                                    {member.user.name}
+                                                    {isCurrentUser && <span className="text-xs text-[var(--apple-blue)]">(You)</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs text-[var(--muted)] uppercase tracking-wide mb-1">Net Worth</div>
+                                            <div className="text-2xl font-black">{formatCurrency(member.credits)}</div>
+                                            <div className={`text-xs font-mono ${profit >= 0 ? 'text-[var(--apple-green)]' : 'text-[var(--apple-red)]'}`}>
+                                                {profit >= 0 ? '+' : ''}{formatCurrency(profit)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
                 </div>
             )}
 
-            {activeTab === "admin" && isOwner && (
-                <div className="max-w-2xl mx-auto space-y-8">
-                    {/* Settings */}
-                    <div className="glass rounded-3xl p-6 card-shadow">
-                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                            <Settings className="size-5 text-white/40" />
-                            League Settings
-                        </h2>
-                        <form action={updateLeagueSettings} className="space-y-4">
-                            <input type="hidden" name="leagueId" value={league.id} />
-
-                            <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
-                                <div>
-                                    <p className="font-medium text-white">Allow Prop Creation</p>
-                                    <p className="text-xs text-slate-400">Let members create their own props</p>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="allowPropCreation"
-                                        value="true"
-                                        defaultChecked={league.allowPropCreation}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
-                                <div>
-                                    <p className="font-medium text-white">Show Activity Feed</p>
-                                    <p className="text-xs text-slate-400">Display recent activity to members</p>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="showActivityFeed"
-                                        value="true"
-                                        defaultChecked={league.showActivityFeed}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
-                            </div>
-
-                            <button
-                                type="submit"
-                                className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={isPending}
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    const form = e.currentTarget.closest('form')
-                                    if (form) handleAction(updateLeagueSettings, new FormData(form))
-                                }}
-                            >
-                                {isPending ? "Saving..." : "Save Settings"}
-                            </button>
-                        </form>
+            {/* ===== RESOLVED TAB ===== */}
+            {activeTab === "resolved" && (
+                <div className="animate-fade-in">
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <div className="text-2xl font-black">Resolved markets</div>
+                            <div className="text-sm text-[var(--muted)]">Past results and payouts</div>
+                        </div>
                     </div>
 
-                    {/* Member Management */}
-                    <div className="glass rounded-3xl p-6 card-shadow">
-                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                            <Users className="size-5 text-white/40" />
-                            Member Management
-                        </h2>
-                        <div className="space-y-4">
-                            {league.members.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
-                                            {member.user.name?.[0] || "?"}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white">
-                                                {member.user.name}
-                                                {member.userId === currentUserId && <span className="text-xs text-slate-500 ml-2">(You)</span>}
-                                            </p>
+                    {pastProps.length === 0 ? (
+                        <div className="wow-shell rounded-[26px] p-6 text-[var(--muted)]">No resolved markets yet.</div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {pastProps.map((prop) => {
+                                const winnerChoice = prop.choices.find((c: any) => c.id === (prop as any).resolvedChoiceId)
+                                const volume = prop.liquidity || prop.bets.reduce((acc: number, bet: any) => acc + bet.amount, 0)
+                                const when = new Date(prop.updatedAt || prop.createdAt).toLocaleDateString()
 
-                                            {editingCredits === member.userId ? (
-                                                <form action={async (formData) => {
-                                                    await handleAction(updateMemberCredits, formData)
-                                                    setEditingCredits(null)
-                                                }} className="flex items-center gap-2 mt-1">
-                                                    <input type="hidden" name="leagueId" value={league.id} />
-                                                    <input type="hidden" name="targetUserId" value={member.userId} />
-                                                    <input
-                                                        type="number"
-                                                        name="credits"
-                                                        defaultValue={member.credits}
-                                                        className="w-20 bg-slate-800 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-400"
-                                                    />
-                                                    <button type="submit" disabled={isPending} className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50">
-                                                        <Check className="size-4" />
-                                                    </button>
-                                                    <button type="button" onClick={() => setEditingCredits(null)} className="text-red-400 hover:text-red-300">
-                                                        <X className="size-4" />
-                                                    </button>
-                                                </form>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-xs text-slate-400">{member.credits} credits</p>
-                                                    <button
-                                                        onClick={() => setEditingCredits(member.userId)}
-                                                        className="text-slate-500 hover:text-white transition-colors"
-                                                    >
-                                                        <Edit2 className="size-3" />
-                                                    </button>
+                                return (
+                                    <Link
+                                        key={prop.id}
+                                        href={`/props/${prop.id}`}
+                                        className="w-full text-left wow-shell rounded-[22px] p-5 hover:border-white/20 transition border border-white/10 bg-white/5 block"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <div className="font-black text-lg leading-snug">{prop.question}</div>
+                                                <div className="mt-1 text-xs text-[var(--muted)]">
+                                                    {(prop as any).category || 'Uncategorized'} • {when}
                                                 </div>
-                                            )}
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {winnerChoice ? (
+                                                        <span className="chip text-[11px]" style={{ borderColor: 'rgba(255,255,255,.12)', color: 'rgba(255,255,255,.92)' }}>
+                                                            {winnerChoice.text} won
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`chip text-[11px] ${prop.status === 'RESOLVED' ? 'text-[var(--brand)]' : 'text-[var(--bad)]'}`}>
+                                                            {prop.status}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className="text-xs text-[var(--muted)]">Volume</div>
+                                                <div className="font-black">{formatCurrency(volume)}</div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ===== SOCIAL TAB ===== */}
+            {activeTab === "social" && (
+                <div className="animate-fade-in">
+                    <div className="wow-shell rounded-[26px] p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <div className="text-xs text-[var(--muted)] uppercase tracking-widest">Social</div>
+                                <div className="text-2xl font-black">League feed</div>
+                                <div className="text-xs text-[var(--muted)] mt-1">Activity + notifications, unified.</div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                    className={`px-3 py-2 rounded-xl text-xs font-black border ${socialSubTab === 'ACTIVITY' ? 'bg-white/10 border-white/15' : 'bg-white/5 border-white/10 hover:bg-white/[0.08]'}`}
+                                    onClick={() => setSocialSubTab('ACTIVITY')}
+                                >
+                                    Activity
+                                </button>
+                                <button
+                                    className={`px-3 py-2 rounded-xl text-xs font-black border relative ${socialSubTab === 'COMMENTS' ? 'bg-white/10 border-white/15' : 'bg-white/5 border-white/10 hover:bg-white/[0.08]'}`}
+                                    onClick={() => setSocialSubTab('COMMENTS')}
+                                >
+                                    Notifications
+                                    {unreadNotificationsCount > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 bg-[var(--bad)] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">
+                                            {unreadNotificationsCount}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-5">
+                            {socialSubTab === 'ACTIVITY' && (
+                                <div className="space-y-2">
+                                    {activities.length === 0 ? (
+                                        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-[var(--muted)]">
+                                            No activity yet. Create a market or place a trade.
+                                        </div>
+                                    ) : (
+                                        activities.map((activity) => (
+                                            <div
+                                                key={activity.id}
+                                                className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/[0.07] transition"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-black shrink-0 border border-white/20">
+                                                        {activity.user.name?.[0] || "?"}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-extrabold text-sm">
+                                                            <span className="text-white">{activity.user.name}</span>{' '}
+                                                            <span className="text-white/50 font-normal">{activity.content}</span>
+                                                        </div>
+                                                        <div className="text-xs text-[var(--muted)] mt-1">
+                                                            {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {socialSubTab === 'COMMENTS' && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="text-sm font-black">Notifications</div>
+                                        {unreadNotificationsCount > 0 && (
+                                            <button
+                                                onClick={() => startTransition(async () => {
+                                                    await markAllNotificationsRead(league.id)
+                                                    router.refresh()
+                                                })}
+                                                className="text-xs text-[var(--brand)] font-bold hover:opacity-70"
+                                                disabled={isPending}
+                                            >
+                                                Mark all read
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {notifications.length === 0 ? (
+                                            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-[var(--muted)]">
+                                                No notifications yet.
+                                            </div>
+                                        ) : (
+                                            notifications.map((notification: any) => (
+                                                <div
+                                                    key={notification.id}
+                                                    className={`p-4 rounded-2xl bg-white/5 border hover:bg-white/[0.07] transition ${notification.read ? 'border-white/5 opacity-60' : 'border-[var(--apple-blue)]/30'}`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`size-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${notification.type === 'BET_WON' ? 'bg-[var(--apple-green)]/20 text-[var(--apple-green)]' : notification.type === 'BET_LOST' ? 'bg-[var(--apple-red)]/20 text-[var(--apple-red)]' : 'bg-[var(--apple-blue)]/20 text-[var(--apple-blue)]'}`}>
+                                                                <Bell className="size-4" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-extrabold text-sm">{notification.message}</div>
+                                                                <div className="text-xs text-[var(--muted)] mt-1">
+                                                                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {!notification.read && (
+                                                            <button
+                                                                onClick={() => startTransition(async () => {
+                                                                    await markNotificationRead(notification.id, league.id)
+                                                                    router.refresh()
+                                                                })}
+                                                                className="text-xs text-[var(--brand)] font-bold hover:opacity-70"
+                                                                disabled={isPending}
+                                                            >
+                                                                Mark read
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Admin & Settings collapsible panel */}
+                    <div className="mt-6">
+                        <button
+                            onClick={() => setShowAdminPanel(!showAdminPanel)}
+                            className="flex items-center gap-2 text-sm text-[var(--muted)] hover:text-white transition font-bold"
+                        >
+                            <Settings className="size-4" />
+                            League Settings & Admin
+                            <ChevronDown className={`size-4 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showAdminPanel && (
+                            <div className="mt-4 space-y-6 animate-fade-in">
+                                {/* Admin section for owners */}
+                                {isOwner && (
+                                    <div className="glass rounded-3xl p-6 card-shadow">
+                                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                                            <Settings className="size-5 text-white/40" />
+                                            League Settings
+                                        </h2>
+                                        <form action={updateLeagueSettings} className="space-y-4">
+                                            <input type="hidden" name="leagueId" value={league.id} />
+                                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                                <div>
+                                                    <p className="font-medium text-white">Allow Prop Creation</p>
+                                                    <p className="text-xs text-[var(--muted)]">Let members create their own props</p>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" name="allowPropCreation" value="true" defaultChecked={league.allowPropCreation} className="sr-only peer" />
+                                                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                                <div>
+                                                    <p className="font-medium text-white">Show Activity Feed</p>
+                                                    <p className="text-xs text-[var(--muted)]">Display recent activity to members</p>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" name="showActivityFeed" value="true" defaultChecked={league.showActivityFeed} className="sr-only peer" />
+                                                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
+                                                </label>
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled={isPending}
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    const form = e.currentTarget.closest('form')
+                                                    if (form) handleAction(updateLeagueSettings, new FormData(form))
+                                                }}
+                                            >
+                                                {isPending ? "Saving..." : "Save Settings"}
+                                            </button>
+                                        </form>
+                                    </div>
+                                )}
+
+                                {/* Member Management (admin only) */}
+                                {isOwner && (
+                                    <div className="glass rounded-3xl p-6 card-shadow">
+                                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                                            <Users className="size-5 text-white/40" />
+                                            Member Management
+                                        </h2>
+                                        <div className="space-y-4">
+                                            {league.members.map((member) => (
+                                                <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
+                                                            {member.user.name?.[0] || "?"}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-white">
+                                                                {member.user.name}
+                                                                {member.userId === currentUserId && <span className="text-xs text-[var(--muted)] ml-2">(You)</span>}
+                                                            </p>
+                                                            {editingCredits === member.userId ? (
+                                                                <form action={async (formData) => {
+                                                                    await handleAction(updateMemberCredits, formData)
+                                                                    setEditingCredits(null)
+                                                                }} className="flex items-center gap-2 mt-1">
+                                                                    <input type="hidden" name="leagueId" value={league.id} />
+                                                                    <input type="hidden" name="targetUserId" value={member.userId} />
+                                                                    <input type="number" name="credits" defaultValue={member.credits} className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[var(--apple-blue)]" />
+                                                                    <button type="submit" disabled={isPending} className="text-[var(--apple-green)] hover:opacity-70 disabled:opacity-50">
+                                                                        <Check className="size-4" />
+                                                                    </button>
+                                                                    <button type="button" onClick={() => setEditingCredits(null)} className="text-[var(--apple-red)] hover:opacity-70">
+                                                                        <X className="size-4" />
+                                                                    </button>
+                                                                </form>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-xs text-[var(--muted)]">{member.credits} credits</p>
+                                                                    <button onClick={() => setEditingCredits(member.userId)} className="text-[var(--muted)] hover:text-white transition-colors">
+                                                                        <Edit2 className="size-3" />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {member.userId !== currentUserId && (
+                                                        <form action={(formData) => handleAction(adminAction, formData)}>
+                                                            <input type="hidden" name="leagueId" value={league.id} />
+                                                            <input type="hidden" name="targetUserId" value={member.userId} />
+                                                            <input type="hidden" name="action" value="KICK" />
+                                                            <button type="submit" disabled={isPending} className="text-xs bg-[var(--apple-red)]/10 text-[var(--apple-red)] px-3 py-1.5 rounded hover:bg-[var(--apple-red)]/20 transition-colors disabled:opacity-50">
+                                                                {isPending ? "..." : "Kick"}
+                                                            </button>
+                                                        </form>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
+                                )}
 
-                                    {member.userId !== currentUserId && (
-                                        <div className="flex items-center gap-2">
-                                            <form action={(formData) => handleAction(adminAction, formData)}>
+                                {/* Danger zone / Leave */}
+                                <div className="glass rounded-3xl p-6 card-shadow">
+                                    <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                                        <Settings className="size-5 text-white/40" />
+                                        {isOwner ? 'Danger Zone' : 'Settings'}
+                                    </h2>
+                                    {isOwner ? (
+                                        <div className="p-4 bg-[var(--apple-red)]/10 border border-[var(--apple-red)]/20 rounded-xl">
+                                            <h3 className="text-[var(--apple-red)] font-bold mb-2 flex items-center gap-2">
+                                                <Trash2 className="size-4" />
+                                                Delete League
+                                            </h3>
+                                            <p className="text-sm text-[var(--apple-red)]/70 mb-4">
+                                                Deleting the league is irreversible. All data will be lost.
+                                            </p>
+                                            <form action={deleteLeague}>
                                                 <input type="hidden" name="leagueId" value={league.id} />
-                                                <input type="hidden" name="targetUserId" value={member.userId} />
-                                                <input type="hidden" name="action" value="KICK" />
-                                                <button type="submit" disabled={isPending} className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 transition-colors disabled:opacity-50">
-                                                    {isPending ? "..." : "Kick"}
+                                                <button type="submit" className="w-full bg-[var(--apple-red)] text-white font-bold py-2 rounded-lg hover:opacity-90 transition">
+                                                    Delete League
+                                                </button>
+                                            </form>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                            <h3 className="font-bold mb-2 text-white">Leave League</h3>
+                                            <p className="text-sm text-[var(--muted)] mb-4">
+                                                You will lose your current credits and betting history in this league.
+                                            </p>
+                                            <form action={leaveLeague}>
+                                                <input type="hidden" name="leagueId" value={league.id} />
+                                                <button type="submit" className="w-full bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition flex items-center justify-center gap-2">
+                                                    <LogOut className="size-4" />
+                                                    Leave League
                                                 </button>
                                             </form>
                                         </div>
                                     )}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === "settings" && (
-                <div className="max-w-2xl mx-auto space-y-8">
-                    <div className="glass rounded-3xl p-6 card-shadow">
-                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                            <Settings className="size-5 text-white/40" />
-                            Settings
-                        </h2>
-
-                        {isOwner ? (
-                            <div className="space-y-6">
-                                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                                    <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2">
-                                        <Trash2 className="size-4" />
-                                        Danger Zone
-                                    </h3>
-                                    <p className="text-sm text-red-300/70 mb-4">
-                                        Deleting the league is irreversible. All data, including props and bets, will be lost.
-                                    </p>
-                                    <form action={deleteLeague}>
-                                        <input type="hidden" name="leagueId" value={league.id} />
-                                        <button
-                                            type="submit"
-                                            className="w-full bg-red-500 text-white font-bold py-2 rounded-lg hover:bg-red-600 transition-colors"
-                                        >
-                                            Delete League
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="p-4 bg-slate-900/50 rounded-xl">
-                                    <h3 className="font-bold mb-2 text-white">Leave League</h3>
-                                    <p className="text-sm text-slate-400 mb-4">
-                                        You will lose your current credits and betting history in this league.
-                                    </p>
-                                    <form action={leaveLeague}>
-                                        <input type="hidden" name="leagueId" value={league.id} />
-                                        <button
-                                            type="submit"
-                                            className="w-full bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <LogOut className="size-4" />
-                                            Leave League
-                                        </button>
-                                    </form>
-                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             )}
+
+            {/* Bottom Dock Navigation */}
+            <DockNavigation activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
     )
 }

@@ -22,55 +22,56 @@ export default async function LeaderboardPage({ params }: { params: { id: string
     if (!league) notFound()
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white flex justify-center p-6">
-            <div className="w-full max-w-2xl">
-                <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors">
+        <div className="min-h-screen relative overflow-hidden flex justify-center p-6">
+            <div className="w-full max-w-2xl relative z-10 pt-6">
+                <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 text-[var(--muted)] hover:text-white mb-8 transition-colors text-sm font-bold">
                     <ArrowLeft className="size-4" />
                     Back to League
                 </Link>
 
-                <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+                <div className="wow-shell rounded-[26px] p-8">
                     <div className="flex items-center gap-4 mb-8">
-                        <div className="bg-amber-500/10 p-3 rounded-full">
-                            <Trophy className="size-8 text-amber-400" />
+                        <div className="p-3 rounded-2xl bg-[var(--warn)]/10 border border-[var(--warn)]/20">
+                            <Trophy className="size-8 text-[var(--warn)]" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Leaderboard</h1>
-                            <p className="text-slate-400">{league.name}</p>
+                            <h1 className="text-2xl font-black">Leaderboard</h1>
+                            <p className="text-[var(--muted)]">{league.name}</p>
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {league.members.map((member, index) => (
                             <div
                                 key={member.id}
-                                className={`flex items-center justify-between p-4 rounded-xl border ${member.userId === session.user.id
-                                        ? "bg-emerald-500/10 border-emerald-500/20"
-                                        : "bg-white/5 border-white/5"
+                                className={`flex items-center justify-between p-4 rounded-2xl border stagger-item ${member.userId === session.user.id
+                                    ? "bg-[var(--good)]/10 border-[var(--good)]/20"
+                                    : "bg-white/[0.03] border-white/[0.06]"
                                     }`}
+                                style={{ animationDelay: `${index * 0.06}s` }}
                             >
                                 <div className="flex items-center gap-4">
-                                    <span className={`w-8 text-center font-bold text-xl ${index === 0 ? "text-amber-400" :
-                                            index === 1 ? "text-slate-300" :
-                                                index === 2 ? "text-amber-700" : "text-slate-500"
+                                    <span className={`w-8 text-center font-black text-xl ${index === 0 ? "text-[var(--warn)]" :
+                                        index === 1 ? "text-white/60" :
+                                            index === 2 ? "text-[var(--warn)]/60" : "text-white/30"
                                         }`}>
                                         {index + 1}
                                     </span>
                                     <div className="flex items-center gap-3">
-                                        <div className="size-10 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold">
+                                        <div className="size-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg font-black border border-white/20">
                                             {member.user.name?.[0] || "?"}
                                         </div>
                                         <div>
-                                            <p className={`font-bold ${member.userId === session.user.id ? "text-emerald-400" : "text-white"}`}>
+                                            <p className={`font-black ${member.userId === session.user.id ? "text-[var(--good)]" : "text-white"}`}>
                                                 {member.user.name}
                                             </p>
-                                            <p className="text-xs text-slate-500">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
+                                            <p className="text-xs text-[var(--muted)]">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-mono font-bold text-xl text-white">{member.credits}</p>
-                                    <p className="text-xs text-slate-500">credits</p>
+                                    <p className="font-mono font-black text-xl text-[var(--good)]">${member.credits}</p>
+                                    <p className="text-xs text-[var(--muted)]">credits</p>
                                 </div>
                             </div>
                         ))}

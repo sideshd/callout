@@ -23,16 +23,16 @@ export default async function CreatePropPage({ params }: { params: Promise<{ id:
     if (!league) redirect("/dashboard")
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6">
-            <div className="w-full max-w-md">
-                <Link href={`/leagues/${id}`} className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-8 transition-colors">
+        <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-6">
+            <div className="w-full max-w-md relative z-10">
+                <Link href={`/leagues/${id}`} className="inline-flex items-center gap-2 text-[var(--muted)] hover:text-white mb-8 transition-colors text-sm font-bold">
                     <ArrowLeft className="size-4" />
                     Back to League
                 </Link>
 
-                <div className="glass rounded-3xl p-8 card-shadow">
-                    <h1 className="text-2xl font-black mb-2 wow-grad">Create a Prop</h1>
-                    <p className="text-white/50 mb-8">Set the terms. Make it spicy.</p>
+                <div className="wow-shell rounded-[26px] p-8">
+                    <h1 className="text-3xl font-black tracking-tight mb-2">New Market</h1>
+                    <p className="text-[var(--muted)] text-sm mb-8">Create a prediction market. Make it interesting.</p>
 
                     <CreatePropForm leagueId={id} members={league.members} currentUserId={session.user.id} />
                 </div>
@@ -40,4 +40,3 @@ export default async function CreatePropPage({ params }: { params: Promise<{ id:
         </div>
     )
 }
-

@@ -1,9 +1,9 @@
 "use client"
 
-import { Copy, Check } from "lucide-react"
 import { useState } from "react"
+import { Copy, Check } from "lucide-react"
 
-export function CopyInviteCode({ inviteCode }: { inviteCode: string }) {
+export function CopyInviteCode({ inviteCode, variant }: { inviteCode: string, variant?: "inline" | "button" }) {
     const [copied, setCopied] = useState(false)
 
     const handleCopy = async () => {
@@ -16,19 +16,35 @@ export function CopyInviteCode({ inviteCode }: { inviteCode: string }) {
         }
     }
 
-    return (
-        <div className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3">
-            <div className="text-xs">
-                <span className="text-slate-500 block">Invite Code</span>
-                <span className="font-mono font-bold text-white tracking-wider">{inviteCode}</span>
-            </div>
+    if (variant === "button") {
+        return (
             <button
                 onClick={handleCopy}
-                className="p-1.5 hover:bg-white/10 rounded-md transition-colors text-slate-400 hover:text-white"
-                title={copied ? "Copied!" : "Copy to clipboard"}
+                className="btn-quiet px-4 py-3 text-sm text-center w-full flex items-center justify-center gap-2"
             >
-                {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                {copied ? (
+                    <>
+                        <Check className="size-4 text-[var(--good)]" />
+                        Copied!
+                    </>
+                ) : (
+                    <>
+                        <Copy className="size-4" />
+                        Copy invite code
+                    </>
+                )}
             </button>
-        </div>
+        )
+    }
+
+    return (
+        <button
+            onClick={handleCopy}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 transition"
+            title={copied ? "Copied!" : "Copy to clipboard"}
+        >
+            <span className="font-mono font-semibold">{inviteCode}</span>
+            {copied ? <Check className="size-4 text-[var(--good)]" /> : <Copy className="size-4 text-[var(--muted)]" />}
+        </button>
     )
 }
