@@ -171,6 +171,10 @@ model Bet {
   amount Int // Amount wagered (credits)
   shares Float @default(0) // [NEW] Number of shares bought (for parimutuel/market logic)
 
+  // Cash-out tracking
+  soldAt    DateTime? // When position was cashed out (null = still active)
+  soldPrice Float?    // Credits received on cash-out
+
   createdAt DateTime @default(now())
 
   prop Prop @relation(fields: [propId], references: [id], onDelete: Cascade)

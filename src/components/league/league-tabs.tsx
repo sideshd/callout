@@ -34,7 +34,6 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
     const [filterCategory, setFilterCategory] = useState<string>("ALL")
     const [socialSubTab, setSocialSubTab] = useState<"ACTIVITY" | "COMMENTS">("ACTIVITY")
     const [editingCredits, setEditingCredits] = useState<string | null>(null)
-    const [showAdminPanel, setShowAdminPanel] = useState(false)
 
     const unreadNotificationsCount = notifications.filter((n: any) => !n.read).length
 
@@ -532,165 +531,157 @@ export function LeagueTabs({ league, activeProps, pastProps, activities, notific
                         </div>
                     </div>
 
-                    {/* Admin & Settings collapsible panel */}
-                    <div className="mt-6">
-                        <button
-                            onClick={() => setShowAdminPanel(!showAdminPanel)}
-                            className="flex items-center gap-2 text-sm text-[var(--muted)] hover:text-white transition font-bold"
-                        >
-                            <Settings className="size-4" />
-                            League Settings & Admin
-                            <ChevronDown className={`size-4 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
-                        </button>
+                    {/* Commissioner Portal — always visible for owners */}
+                    {isOwner && (
+                        <div className="mt-8">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="size-8 rounded-xl bg-[var(--apple-orange)]/20 flex items-center justify-center border border-[var(--apple-orange)]/30">
+                                    <Settings className="size-4 text-[var(--apple-orange)]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black">Commissioner Portal</h2>
+                                    <p className="text-xs text-[var(--muted)]">Manage your league</p>
+                                </div>
+                            </div>
 
-                        {showAdminPanel && (
-                            <div className="mt-4 space-y-6 animate-fade-in">
-                                {/* Admin section for owners */}
-                                {isOwner && (
-                                    <div className="glass rounded-3xl p-6 card-shadow">
-                                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                                            <Settings className="size-5 text-white/40" />
-                                            League Settings
-                                        </h2>
-                                        <form action={updateLeagueSettings} className="space-y-4">
+                            <div className="space-y-4">
+                                {/* League Settings */}
+                                <div className="glass rounded-2xl p-6 card-shadow border border-white/10">
+                                    <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-white/40">League Settings</h3>
+                                    <form action={updateLeagueSettings} className="space-y-4">
+                                        <input type="hidden" name="leagueId" value={league.id} />
+                                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                            <div>
+                                                <p className="font-medium text-white">Allow Prop Creation</p>
+                                                <p className="text-xs text-[var(--muted)]">Let members create their own props</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="allowPropCreation" value="true" defaultChecked={league.allowPropCreation} className="sr-only peer" />
+                                                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                            <div>
+                                                <p className="font-medium text-white">Show Activity Feed</p>
+                                                <p className="text-xs text-[var(--muted)]">Display recent activity to members</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="showActivityFeed" value="true" defaultChecked={league.showActivityFeed} className="sr-only peer" />
+                                                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
+                                            </label>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={isPending}
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                const form = e.currentTarget.closest('form')
+                                                if (form) handleAction(updateLeagueSettings, new FormData(form))
+                                            }}
+                                        >
+                                            {isPending ? "Saving..." : "Save Settings"}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* Member Management */}
+                                <div className="glass rounded-2xl p-6 card-shadow border border-white/10">
+                                    <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-white/40">Member Management</h3>
+                                    <div className="space-y-3">
+                                        {league.members.map((member) => (
+                                            <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
+                                                        {member.user.name?.[0] || "?"}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white">
+                                                            {member.user.name}
+                                                            {member.userId === currentUserId && <span className="text-xs text-[var(--muted)] ml-2">(You)</span>}
+                                                            {member.userId === league.ownerId && <span className="text-xs text-[var(--apple-orange)] ml-2">👑 Commissioner</span>}
+                                                        </p>
+                                                        {editingCredits === member.userId ? (
+                                                            <form action={async (formData) => {
+                                                                await handleAction(updateMemberCredits, formData)
+                                                                setEditingCredits(null)
+                                                            }} className="flex items-center gap-2 mt-1">
+                                                                <input type="hidden" name="leagueId" value={league.id} />
+                                                                <input type="hidden" name="targetUserId" value={member.userId} />
+                                                                <input type="number" name="credits" defaultValue={member.credits} className="w-24 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--apple-blue)]" />
+                                                                <button type="submit" disabled={isPending} className="text-[var(--apple-green)] hover:opacity-70 disabled:opacity-50">
+                                                                    <Check className="size-4" />
+                                                                </button>
+                                                                <button type="button" onClick={() => setEditingCredits(null)} className="text-[var(--apple-red)] hover:opacity-70">
+                                                                    <X className="size-4" />
+                                                                </button>
+                                                            </form>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs text-[var(--muted)]">{member.credits} credits</p>
+                                                                <button onClick={() => setEditingCredits(member.userId)} className="text-[var(--muted)] hover:text-white transition-colors">
+                                                                    <Edit2 className="size-3" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {member.userId !== currentUserId && (
+                                                    <form action={(formData) => handleAction(adminAction, formData)}>
+                                                        <input type="hidden" name="leagueId" value={league.id} />
+                                                        <input type="hidden" name="targetUserId" value={member.userId} />
+                                                        <input type="hidden" name="action" value="KICK" />
+                                                        <button type="submit" disabled={isPending} className="text-xs bg-[var(--apple-red)]/10 text-[var(--apple-red)] px-3 py-1.5 rounded-lg hover:bg-[var(--apple-red)]/20 transition-colors disabled:opacity-50 font-bold">
+                                                            {isPending ? "..." : "Kick"}
+                                                        </button>
+                                                    </form>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Danger Zone */}
+                                <div className="glass rounded-2xl p-6 card-shadow border border-[var(--apple-red)]/30">
+                                    <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-[var(--apple-red)]">Danger Zone</h3>
+                                    <div className="p-4 bg-[var(--apple-red)]/10 border border-[var(--apple-red)]/20 rounded-xl">
+                                        <h4 className="text-[var(--apple-red)] font-bold mb-2 flex items-center gap-2">
+                                            <Trash2 className="size-4" />
+                                            Delete League
+                                        </h4>
+                                        <p className="text-sm text-[var(--apple-red)]/70 mb-4">
+                                            Deleting the league is irreversible. All data will be lost.
+                                        </p>
+                                        <form action={deleteLeague}>
                                             <input type="hidden" name="leagueId" value={league.id} />
-                                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                                                <div>
-                                                    <p className="font-medium text-white">Allow Prop Creation</p>
-                                                    <p className="text-xs text-[var(--muted)]">Let members create their own props</p>
-                                                </div>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input type="checkbox" name="allowPropCreation" value="true" defaultChecked={league.allowPropCreation} className="sr-only peer" />
-                                                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
-                                                </label>
-                                            </div>
-                                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                                                <div>
-                                                    <p className="font-medium text-white">Show Activity Feed</p>
-                                                    <p className="text-xs text-[var(--muted)]">Display recent activity to members</p>
-                                                </div>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input type="checkbox" name="showActivityFeed" value="true" defaultChecked={league.showActivityFeed} className="sr-only peer" />
-                                                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--apple-green)]"></div>
-                                                </label>
-                                            </div>
-                                            <button
-                                                type="submit"
-                                                className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                disabled={isPending}
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    const form = e.currentTarget.closest('form')
-                                                    if (form) handleAction(updateLeagueSettings, new FormData(form))
-                                                }}
-                                            >
-                                                {isPending ? "Saving..." : "Save Settings"}
+                                            <button type="submit" className="w-full bg-[var(--apple-red)] text-white font-bold py-2 rounded-lg hover:opacity-90 transition">
+                                                Delete League
                                             </button>
                                         </form>
                                     </div>
-                                )}
-
-                                {/* Member Management (admin only) */}
-                                {isOwner && (
-                                    <div className="glass rounded-3xl p-6 card-shadow">
-                                        <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                                            <Users className="size-5 text-white/40" />
-                                            Member Management
-                                        </h2>
-                                        <div className="space-y-4">
-                                            {league.members.map((member) => (
-                                                <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-black border border-white/20">
-                                                            {member.user.name?.[0] || "?"}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium text-white">
-                                                                {member.user.name}
-                                                                {member.userId === currentUserId && <span className="text-xs text-[var(--muted)] ml-2">(You)</span>}
-                                                            </p>
-                                                            {editingCredits === member.userId ? (
-                                                                <form action={async (formData) => {
-                                                                    await handleAction(updateMemberCredits, formData)
-                                                                    setEditingCredits(null)
-                                                                }} className="flex items-center gap-2 mt-1">
-                                                                    <input type="hidden" name="leagueId" value={league.id} />
-                                                                    <input type="hidden" name="targetUserId" value={member.userId} />
-                                                                    <input type="number" name="credits" defaultValue={member.credits} className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[var(--apple-blue)]" />
-                                                                    <button type="submit" disabled={isPending} className="text-[var(--apple-green)] hover:opacity-70 disabled:opacity-50">
-                                                                        <Check className="size-4" />
-                                                                    </button>
-                                                                    <button type="button" onClick={() => setEditingCredits(null)} className="text-[var(--apple-red)] hover:opacity-70">
-                                                                        <X className="size-4" />
-                                                                    </button>
-                                                                </form>
-                                                            ) : (
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="text-xs text-[var(--muted)]">{member.credits} credits</p>
-                                                                    <button onClick={() => setEditingCredits(member.userId)} className="text-[var(--muted)] hover:text-white transition-colors">
-                                                                        <Edit2 className="size-3" />
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    {member.userId !== currentUserId && (
-                                                        <form action={(formData) => handleAction(adminAction, formData)}>
-                                                            <input type="hidden" name="leagueId" value={league.id} />
-                                                            <input type="hidden" name="targetUserId" value={member.userId} />
-                                                            <input type="hidden" name="action" value="KICK" />
-                                                            <button type="submit" disabled={isPending} className="text-xs bg-[var(--apple-red)]/10 text-[var(--apple-red)] px-3 py-1.5 rounded hover:bg-[var(--apple-red)]/20 transition-colors disabled:opacity-50">
-                                                                {isPending ? "..." : "Kick"}
-                                                            </button>
-                                                        </form>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Danger zone / Leave */}
-                                <div className="glass rounded-3xl p-6 card-shadow">
-                                    <h2 className="text-lg font-black mb-6 flex items-center gap-2">
-                                        <Settings className="size-5 text-white/40" />
-                                        {isOwner ? 'Danger Zone' : 'Settings'}
-                                    </h2>
-                                    {isOwner ? (
-                                        <div className="p-4 bg-[var(--apple-red)]/10 border border-[var(--apple-red)]/20 rounded-xl">
-                                            <h3 className="text-[var(--apple-red)] font-bold mb-2 flex items-center gap-2">
-                                                <Trash2 className="size-4" />
-                                                Delete League
-                                            </h3>
-                                            <p className="text-sm text-[var(--apple-red)]/70 mb-4">
-                                                Deleting the league is irreversible. All data will be lost.
-                                            </p>
-                                            <form action={deleteLeague}>
-                                                <input type="hidden" name="leagueId" value={league.id} />
-                                                <button type="submit" className="w-full bg-[var(--apple-red)] text-white font-bold py-2 rounded-lg hover:opacity-90 transition">
-                                                    Delete League
-                                                </button>
-                                            </form>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                                            <h3 className="font-bold mb-2 text-white">Leave League</h3>
-                                            <p className="text-sm text-[var(--muted)] mb-4">
-                                                You will lose your current credits and betting history in this league.
-                                            </p>
-                                            <form action={leaveLeague}>
-                                                <input type="hidden" name="leagueId" value={league.id} />
-                                                <button type="submit" className="w-full bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition flex items-center justify-center gap-2">
-                                                    <LogOut className="size-4" />
-                                                    Leave League
-                                                </button>
-                                            </form>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+
+                    {/* Non-owner settings (just leave) */}
+                    {!isOwner && (
+                        <div className="mt-8">
+                            <div className="glass rounded-2xl p-6 card-shadow border border-white/10">
+                                <h3 className="font-bold mb-2 text-white">Leave League</h3>
+                                <p className="text-sm text-[var(--muted)] mb-4">
+                                    You will lose your current credits and betting history in this league.
+                                </p>
+                                <form action={leaveLeague}>
+                                    <input type="hidden" name="leagueId" value={league.id} />
+                                    <button type="submit" className="w-full bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition flex items-center justify-center gap-2">
+                                        <LogOut className="size-4" />
+                                        Leave League
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

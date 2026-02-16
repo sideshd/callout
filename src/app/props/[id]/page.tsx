@@ -2,13 +2,14 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect, notFound } from "next/navigation"
-import { createComment } from "@/app/actions"
 import Link from "next/link"
-import { ArrowLeft, TrendingUp, AlertCircle, MessageSquare, DollarSign } from "lucide-react"
+import { ArrowLeft, AlertCircle, DollarSign } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { PlaceBetForm } from "@/components/forms/place-bet-form"
 import { AdminControls } from "@/components/forms/admin-controls"
 import { PropProbabilityChart } from "@/components/charts/prop-probability-chart"
+import { CommentSection } from "@/components/market/comment-section"
+import { CashOutButton } from "@/components/market/cash-out-button"
 
 export const dynamic = "force-dynamic"
 
@@ -29,7 +30,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
             bets: { include: { user: true, choice: true } },
             comments: {
                 include: { user: true },
-                orderBy: { createdAt: "desc" }
+                orderBy: { createdAt: "asc" }
             }
         }
     })
@@ -50,10 +51,14 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
     const isAdmin = prop.league.ownerId === session.user.id
     const isLive = prop.status === "LIVE"
 
-    const userBets = prop.bets.filter((b: any) => b.userId === session.user.id)
+    // Active (unsold) bets for the current user
+    const activeBets = prop.bets.filter((b: any) => b.userId === session.user.id && !b.soldAt)
+    // Past (sold) bets for the current user
+    const soldBets = prop.bets.filter((b: any) => b.userId === session.user.id && b.soldAt)
+    const existingBet = activeBets[0] || null
+
     const totalPool = prop.liquidity || prop.bets.reduce((sum: number, b: any) => sum + b.amount, 0)
 
-    const topChoice = prop.choices[0]
     const OUTCOME_COLORS = ["var(--apple-green)", "var(--apple-blue)", "var(--apple-orange)", "var(--apple-red)", "var(--apple-purple)"]
 
     return (
@@ -80,9 +85,9 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                                     <span className="text-xs text-[var(--muted)]">total invested</span>
                                 </div>
                                 <span className={`text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${prop.status === "LIVE" ? "bg-[var(--apple-green)]/15 text-[var(--apple-green)]" :
-                                        prop.status === "LOCKED" ? "bg-[var(--apple-orange)]/15 text-[var(--apple-orange)]" :
-                                            prop.status === "RESOLVED" ? "bg-[var(--apple-blue)]/15 text-[var(--apple-blue)]" :
-                                                "bg-[var(--apple-red)]/15 text-[var(--apple-red)]"
+                                    prop.status === "LOCKED" ? "bg-[var(--apple-orange)]/15 text-[var(--apple-orange)]" :
+                                        prop.status === "RESOLVED" ? "bg-[var(--apple-blue)]/15 text-[var(--apple-blue)]" :
+                                            "bg-[var(--apple-red)]/15 text-[var(--apple-red)]"
                                     }`}>
                                     {prop.status}
                                 </span>
@@ -114,20 +119,69 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                     {/* Trade Panel (right column) */}
                     <div className="w-full lg:w-[420px] shrink-0 self-start">
                         <div className="glass rounded-2xl border border-white/10 overflow-hidden card-shadow">
-                            {/* User positions if any */}
-                            {userBets.length > 0 && (
+                            {/* Active position with cash-out */}
+                            {activeBets.length > 0 && (
                                 <div className="p-6 border-b border-white/10">
-                                    <h3 className="text-xs font-black text-white/40 mb-4 uppercase tracking-wider">Your Positions</h3>
-                                    <div className="space-y-2">
-                                        {userBets.map((bet: any) => (
-                                            <div key={bet.id} className="glass rounded-xl p-4 flex justify-between items-center border border-white/5">
-                                                <div>
-                                                    <span className="text-[var(--apple-green)] font-black block">{bet.choice.text}</span>
-                                                    <span className="text-xs text-white/40">{formatDistanceToNow(bet.createdAt, { addSuffix: true })}</span>
+                                    <h3 className="text-xs font-black text-white/40 mb-4 uppercase tracking-wider">Your Position</h3>
+                                    <div className="space-y-3">
+                                        {activeBets.map((bet: any) => {
+                                            const currentValue = Math.floor(bet.shares * bet.choice.probability)
+                                            const pnl = currentValue - bet.amount
+                                            const pnlPercent = bet.amount > 0 ? ((pnl / bet.amount) * 100).toFixed(1) : '0'
+                                            return (
+                                                <div key={bet.id} className="glass rounded-xl p-4 border border-white/5">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div>
+                                                            <span className="text-[var(--apple-green)] font-black block text-lg">{bet.choice.text}</span>
+                                                            <span className="text-xs text-white/40">{formatDistanceToNow(bet.createdAt, { addSuffix: true })}</span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-xl font-black text-white">${bet.amount}</div>
+                                                            <div className="text-xs text-white/40">{bet.shares.toFixed(1)} shares</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* P&L display */}
+                                                    <div className="flex items-center justify-between glass rounded-lg p-3 mb-3">
+                                                        <div className="text-xs text-white/40">Current Value</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-mono font-bold">${currentValue}</span>
+                                                            <span className={`text-xs font-bold ${pnl >= 0 ? 'text-[var(--apple-green)]' : 'text-[var(--apple-red)]'}`}>
+                                                                {pnl >= 0 ? '+' : ''}{pnl} ({pnl >= 0 ? '+' : ''}{pnlPercent}%)
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Cash out button */}
+                                                    {isLive && (
+                                                        <CashOutButton betId={bet.id} saleValue={currentValue} pnl={pnl} />
+                                                    )}
                                                 </div>
-                                                <span className="text-xl font-black text-white">${bet.amount}</span>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Past (cashed out) positions */}
+                            {soldBets.length > 0 && (
+                                <div className="p-6 border-b border-white/10">
+                                    <h3 className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">Cashed Out</h3>
+                                    <div className="space-y-2">
+                                        {soldBets.map((bet: any) => {
+                                            const pnl = (bet.soldPrice || 0) - bet.amount
+                                            return (
+                                                <div key={bet.id} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10 opacity-60">
+                                                    <div>
+                                                        <span className="text-sm font-bold">{bet.choice.text}</span>
+                                                        <span className="text-xs text-white/40 ml-2">sold</span>
+                                                    </div>
+                                                    <span className={`text-sm font-bold ${pnl >= 0 ? 'text-[var(--apple-green)]' : 'text-[var(--apple-red)]'}`}>
+                                                        {pnl >= 0 ? '+' : ''}{pnl}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -135,19 +189,23 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                             {/* Outcome list + trade form */}
                             <div className="p-6">
                                 <h3 className="text-lg font-bold mb-4">
-                                    {isLive ? 'Select outcome' : 'Current odds'}
+                                    {isLive ? (existingBet ? 'Current Odds' : 'Select outcome') : 'Final odds'}
                                 </h3>
 
                                 {/* Outcome pills */}
                                 <div className="space-y-3 mb-6">
                                     {prop.choices.map((choice: any, index: number) => {
                                         const color = OUTCOME_COLORS[index % OUTCOME_COLORS.length]
+                                        const isWinner = prop.winningChoiceId === choice.id
                                         return (
-                                            <div key={choice.id} className="p-5 bg-white/5 rounded-xl border border-white/10">
+                                            <div key={choice.id} className={`p-5 bg-white/5 rounded-xl border ${isWinner ? 'border-[var(--apple-green)]/50 bg-[var(--apple-green)]/10' : 'border-white/10'}`}>
                                                 <div className="flex justify-between items-center mb-3">
                                                     <div className="flex items-center gap-3 flex-1">
                                                         <div className="w-3 h-3 rounded-full" style={{ background: color }}></div>
-                                                        <div className="text-2xl font-black" style={{ color }}>{choice.text}</div>
+                                                        <div className="text-2xl font-black" style={{ color }}>
+                                                            {choice.text}
+                                                            {isWinner && <span className="text-sm ml-2 text-[var(--apple-green)]">✓ Winner</span>}
+                                                        </div>
                                                     </div>
                                                     <div className="text-[var(--muted)] font-mono text-sm font-bold">
                                                         {(choice.probability * 100).toFixed(0)}%
@@ -164,13 +222,20 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                                     })}
                                 </div>
 
-                                {/* Trade form */}
+                                {/* Trade form - only show if no existing position */}
                                 {isLive ? (
-                                    <PlaceBetForm
-                                        propId={prop.id}
-                                        choices={prop.choices}
-                                        maxCredits={membership.credits}
-                                    />
+                                    existingBet ? (
+                                        <div className="text-center py-4 glass rounded-xl border border-white/10">
+                                            <p className="text-white/50 text-sm font-semibold">You already have a position</p>
+                                            <p className="text-white/30 text-xs mt-1">Cash out above to place a new bet</p>
+                                        </div>
+                                    ) : (
+                                        <PlaceBetForm
+                                            propId={prop.id}
+                                            choices={prop.choices}
+                                            maxCredits={membership.credits}
+                                        />
+                                    )
                                 ) : (
                                     <div className="text-center py-4">
                                         <AlertCircle className="size-8 text-white/30 mx-auto mb-2" />
@@ -187,48 +252,14 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                     </div>
                 </div>
 
-                {/* Comments Section */}
-                <div className="mt-8 glass rounded-2xl p-5 border border-white/10 card-shadow animate-fade-in">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                        <div>
-                            <div className="text-sm font-black">Comments</div>
-                            <div className="text-xs text-[var(--muted)]">Argue your case. Drop receipts.</div>
-                        </div>
-                    </div>
-
-                    {/* Comment form */}
-                    <div className="flex gap-2 mb-4">
-                        <form action={createComment} className="flex gap-2 w-full">
-                            <input type="hidden" name="propId" value={prop.id} />
-                            <input
-                                type="text"
-                                name="content"
-                                placeholder="Write a comment…"
-                                className="input-apple flex-1"
-                                required
-                            />
-                            <button type="submit" className="btn-primary px-4 py-2.5 text-sm">Post</button>
-                        </form>
-                    </div>
-
-                    {/* Comment list */}
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto rounded-xl bg-black/25 border border-white/10 p-3">
-                        {prop.comments.length === 0 ? (
-                            <div className="text-sm text-[var(--muted)] p-3">No comments yet. Be the first!</div>
-                        ) : (
-                            prop.comments.map((comment: any) => (
-                                <div
-                                    key={comment.id}
-                                    className={`p-3 rounded-xl ${comment.user.id === session.user.id ? 'bg-[var(--apple-blue)]/15 border border-[var(--apple-blue)]/25' : 'bg-white/5 border border-white/10'}`}
-                                >
-                                    <div className="text-xs text-[var(--muted)]">
-                                        {comment.user.name} • {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                    </div>
-                                    <div className="mt-1 font-semibold">{comment.content}</div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                {/* Dynamic Comments Section */}
+                <div className="mt-8 animate-fade-in">
+                    <CommentSection
+                        propId={prop.id}
+                        initialComments={prop.comments}
+                        currentUserId={session.user.id}
+                        currentUserName={session.user.name ?? null}
+                    />
                 </div>
             </div>
         </div>

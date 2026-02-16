@@ -235,6 +235,19 @@ export async function placeBet(formData: FormData) {
         if (prop.status !== "LIVE") return { error: "Prop is not live" }
         if (prop.bettingDeadline && new Date() > prop.bettingDeadline) return { error: "Betting closed" }
 
+        // Single-bet enforcement: check for existing unsold position
+        const existingBet = await prisma.bet.findFirst({
+            where: {
+                propId,
+                userId: session.user.id,
+                soldAt: null // only active (unsold) bets
+            }
+        })
+
+        if (existingBet) {
+            return { error: "You already have a position on this market. Cash out first to change your position." }
+        }
+
         const membership = await prisma.leagueMember.findUnique({
             where: {
                 leagueId_userId: {
@@ -253,6 +266,9 @@ export async function placeBet(formData: FormData) {
         const targetChoice = prop.choices.find(c => c.id === choiceId)
         if (!targetChoice) return { error: "Invalid choice" }
 
+        // Calculate shares: amount / probability
+        const shares = amount / Math.max(targetChoice.probability, 0.01)
+
         await prisma.$transaction(async (tx) => {
             // Deduct credits
             await tx.leagueMember.update({
@@ -260,13 +276,14 @@ export async function placeBet(formData: FormData) {
                 data: { credits: { decrement: amount } }
             })
 
-            // Create Bet
+            // Create Bet with shares
             await tx.bet.create({
                 data: {
                     propId,
                     userId: session.user.id,
                     choiceId,
-                    amount
+                    amount,
+                    shares
                 }
             })
 
@@ -281,10 +298,7 @@ export async function placeBet(formData: FormData) {
                 data: { liquidity: { increment: amount } }
             })
 
-            // Recalculate probabilities
-            // simple model: prob = pool / total
-            // If total is 0? Handled by newLiquidity check (it's at least amount)
-
+            // Recalculate probabilities: prob = pool / total
             for (const choice of prop.choices) {
                 const isTarget = choice.id === choiceId
                 const currentPool = choice.poolAmount + (isTarget ? amount : 0)
@@ -314,9 +328,120 @@ export async function placeBet(formData: FormData) {
         }
 
         revalidatePath(`/props/${propId}`)
+        revalidatePath(`/leagues/${prop.leagueId}`)
     } catch (error) {
         console.error(error)
         return { error: "Failed to place bet" }
+    }
+}
+
+export async function sellShares(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return { error: "Not authenticated" }
+
+    const betId = formData.get("betId") as string
+    if (!betId) return { error: "Missing bet ID" }
+
+    try {
+        const bet = await prisma.bet.findUnique({
+            where: { id: betId },
+            include: {
+                prop: {
+                    include: {
+                        league: true,
+                        choices: true
+                    }
+                },
+                choice: true
+            }
+        })
+
+        if (!bet) return { error: "Bet not found" }
+        if (bet.userId !== session.user.id) return { error: "Not your bet" }
+        if (bet.soldAt) return { error: "Already cashed out" }
+        if (bet.prop.status !== "LIVE") return { error: "Market is no longer live" }
+
+        const membership = await prisma.leagueMember.findUnique({
+            where: {
+                leagueId_userId: {
+                    leagueId: bet.prop.leagueId,
+                    userId: session.user.id
+                }
+            }
+        })
+
+        if (!membership) return { error: "Not a member" }
+
+        // Kalshi-style cash out: sale value = shares × current probability
+        const saleValue = Math.floor(bet.shares * bet.choice.probability)
+        if (saleValue <= 0) return { error: "Position has no value at current odds" }
+
+        await prisma.$transaction(async (tx) => {
+            // Credit the user
+            await tx.leagueMember.update({
+                where: { id: membership.id },
+                data: { credits: { increment: saleValue } }
+            })
+
+            // Mark bet as sold
+            await tx.bet.update({
+                where: { id: betId },
+                data: {
+                    soldAt: new Date(),
+                    soldPrice: saleValue
+                }
+            })
+
+            // Reduce pool for this choice by the original bet amount
+            const newPoolAmount = Math.max(0, bet.choice.poolAmount - bet.amount)
+            await tx.choice.update({
+                where: { id: bet.choiceId },
+                data: { poolAmount: newPoolAmount }
+            })
+
+            // Reduce total liquidity
+            const newLiquidity = Math.max(0, bet.prop.liquidity - bet.amount)
+            await tx.prop.update({
+                where: { id: bet.propId },
+                data: { liquidity: newLiquidity }
+            })
+
+            // Recalculate all probabilities
+            const updatedChoices = bet.prop.choices.map(c => ({
+                ...c,
+                poolAmount: c.id === bet.choiceId ? newPoolAmount : c.poolAmount
+            }))
+            const totalPool = updatedChoices.reduce((sum, c) => sum + c.poolAmount, 0)
+
+            for (const choice of updatedChoices) {
+                const newProb = totalPool > 0
+                    ? choice.poolAmount / totalPool
+                    : 1.0 / updatedChoices.length
+                await tx.choice.update({
+                    where: { id: choice.id },
+                    data: { probability: newProb }
+                })
+            }
+        })
+
+        // Activity log
+        if (bet.prop.league.showActivityFeed) {
+            const pnl = saleValue - bet.amount
+            await prisma.activity.create({
+                data: {
+                    leagueId: bet.prop.leagueId,
+                    userId: session.user.id,
+                    type: "BET",
+                    content: `cashed out of "${bet.choice.text}" for ${saleValue} credits (${pnl >= 0 ? '+' : ''}${pnl})`
+                }
+            })
+        }
+
+        revalidatePath(`/props/${bet.propId}`)
+        revalidatePath(`/leagues/${bet.prop.leagueId}`)
+    } catch (error) {
+        console.error(error)
+        return { error: "Failed to sell shares" }
     }
 }
 
