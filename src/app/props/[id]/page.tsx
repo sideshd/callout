@@ -125,7 +125,10 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                                     <h3 className="text-xs font-black text-white/40 mb-4 uppercase tracking-wider">Your Position</h3>
                                     <div className="space-y-3">
                                         {activeBets.map((bet: any) => {
-                                            const currentValue = Math.floor(bet.shares * bet.choice.probability)
+                                            // Parimutuel: your share of the total pool
+                                            const currentValue = bet.choice.poolAmount > 0
+                                                ? Math.floor((bet.amount / bet.choice.poolAmount) * totalPool)
+                                                : 0
                                             const pnl = currentValue - bet.amount
                                             const pnlPercent = bet.amount > 0 ? ((pnl / bet.amount) * 100).toFixed(1) : '0'
                                             return (
@@ -234,6 +237,7 @@ export default async function PropPage({ params }: { params: Promise<{ id: strin
                                             propId={prop.id}
                                             choices={prop.choices}
                                             maxCredits={membership.credits}
+                                            marketType={prop.marketType}
                                         />
                                     )
                                 ) : (

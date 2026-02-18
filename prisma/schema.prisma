@@ -170,6 +170,7 @@ model Bet {
 
   amount Int // Amount wagered (credits)
   shares Float @default(0) // [NEW] Number of shares bought (for parimutuel/market logic)
+  purchasePrice Float @default(0) // Probability at time of purchase (for cash-out math)
 
   // Cash-out tracking
   soldAt    DateTime? // When position was cashed out (null = still active)

@@ -1,8 +1,9 @@
 "use client"
 
-import { placeBet } from "@/app/actions"
+import { placeBet, addChoiceToProp } from "@/app/actions"
 import { useState, useTransition, useMemo } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface Choice {
     id: string
@@ -15,6 +16,7 @@ interface PlaceBetFormProps {
     propId: string
     choices: Choice[]
     maxCredits: number
+    marketType?: string
 }
 
 const QUICK_AMOUNTS = [10, 50, 100]
@@ -27,11 +29,15 @@ const CHOICE_COLORS = [
     "var(--apple-purple)",
 ]
 
-export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps) {
+export function PlaceBetForm({ propId, choices, maxCredits, marketType }: PlaceBetFormProps) {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
     const [amount, setAmount] = useState<number>(50)
     const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null)
+    const [showAddChoice, setShowAddChoice] = useState(false)
+    const [newChoiceText, setNewChoiceText] = useState("")
+    const [isAddingChoice, setIsAddingChoice] = useState(false)
+    const router = useRouter()
 
     const selectedChoice = choices.find(c => c.id === selectedChoiceId)
 
@@ -59,6 +65,27 @@ export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps)
                 setError(result.error)
             }
         })
+    }
+
+    async function handleAddChoice() {
+        if (!newChoiceText.trim()) return
+        setIsAddingChoice(true)
+        setError(null)
+
+        const formData = new FormData()
+        formData.set("propId", propId)
+        formData.set("choiceText", newChoiceText.trim())
+
+        const result = await addChoiceToProp(formData)
+        setIsAddingChoice(false)
+
+        if (result?.error) {
+            setError(result.error)
+        } else {
+            setNewChoiceText("")
+            setShowAddChoice(false)
+            router.refresh()
+        }
     }
 
     return (
@@ -105,6 +132,52 @@ export function PlaceBetForm({ propId, choices, maxCredits }: PlaceBetFormProps)
                             </label>
                         )
                     })}
+
+                    {/* Add New Option (only for MULTIPLE_CHOICE) */}
+                    {marketType === "MULTIPLE_CHOICE" && (
+                        <div>
+                            {showAddChoice ? (
+                                <div className="rounded-xl p-4 bg-white/5 border border-dashed border-white/20 space-y-3">
+                                    <input
+                                        type="text"
+                                        value={newChoiceText}
+                                        onChange={(e) => setNewChoiceText(e.target.value)}
+                                        placeholder="Type new option..."
+                                        maxLength={100}
+                                        className="input-apple w-full text-sm"
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddChoice() } }}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleAddChoice}
+                                            disabled={isAddingChoice || !newChoiceText.trim()}
+                                            className="btn-primary py-2 px-4 text-xs flex items-center gap-1 disabled:opacity-50"
+                                        >
+                                            {isAddingChoice ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                                            Add
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowAddChoice(false); setNewChoiceText("") }}
+                                            className="py-2 px-4 text-xs text-white/50 hover:text-white transition"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddChoice(true)}
+                                    className="w-full rounded-xl p-4 bg-white/5 border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 transition flex items-center justify-center gap-2 text-sm font-bold"
+                                >
+                                    <Plus className="size-4" />
+                                    Add New Option
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

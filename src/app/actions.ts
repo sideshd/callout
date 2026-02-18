@@ -266,8 +266,7 @@ export async function placeBet(formData: FormData) {
         const targetChoice = prop.choices.find(c => c.id === choiceId)
         if (!targetChoice) return { error: "Invalid choice" }
 
-        // Calculate shares: amount / probability
-        const shares = amount / Math.max(targetChoice.probability, 0.01)
+        // Parimutuel: no shares needed, pool-share determines value
 
         await prisma.$transaction(async (tx) => {
             // Deduct credits
@@ -276,14 +275,15 @@ export async function placeBet(formData: FormData) {
                 data: { credits: { decrement: amount } }
             })
 
-            // Create Bet with shares
+            // Create Bet (parimutuel: pool share is computed from amount/poolAmount)
             await tx.bet.create({
                 data: {
                     propId,
                     userId: session.user.id,
                     choiceId,
                     amount,
-                    shares
+                    shares: 0,
+                    purchasePrice: 0
                 }
             })
 
@@ -372,8 +372,13 @@ export async function sellShares(formData: FormData) {
 
         if (!membership) return { error: "Not a member" }
 
-        // Kalshi-style cash out: sale value = shares × current probability
-        const saleValue = Math.floor(bet.shares * bet.choice.probability)
+        // Parimutuel cash-out: your share of the total pool
+        // saleValue = (yourBet / choicePool) × totalPool
+        // If you're the only bettor → saleValue = your original bet (no free money)
+        // Profit only comes from OTHER bets on different choices growing the pool
+        const saleValue = bet.choice.poolAmount > 0
+            ? Math.floor((bet.amount / bet.choice.poolAmount) * bet.prop.liquidity)
+            : 0
         if (saleValue <= 0) return { error: "Position has no value at current odds" }
 
         await prisma.$transaction(async (tx) => {
@@ -442,6 +447,92 @@ export async function sellShares(formData: FormData) {
     } catch (error) {
         console.error(error)
         return { error: "Failed to sell shares" }
+    }
+}
+
+export async function addChoiceToProp(formData: FormData) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return { error: "Not authenticated" }
+
+    const propId = formData.get("propId") as string
+    const choiceText = (formData.get("choiceText") as string)?.trim()
+
+    if (!propId || !choiceText) return { error: "Missing required fields" }
+    if (choiceText.length > 100) return { error: "Choice text too long (max 100 chars)" }
+
+    try {
+        const prop = await prisma.prop.findUnique({
+            where: { id: propId },
+            include: {
+                league: true,
+                choices: true
+            }
+        })
+
+        if (!prop) return { error: "Prop not found" }
+        if (prop.status !== "LIVE") return { error: "Prop is not live" }
+        if (prop.marketType !== "MULTIPLE_CHOICE") return { error: "Can only add choices to multiple choice props" }
+
+        // Check membership
+        const membership = await prisma.leagueMember.findUnique({
+            where: {
+                leagueId_userId: {
+                    leagueId: prop.leagueId,
+                    userId: session.user.id
+                }
+            }
+        })
+        if (!membership) return { error: "Not a member" }
+
+        // Check for duplicate choice text
+        const duplicate = prop.choices.find(c => c.text.toLowerCase() === choiceText.toLowerCase())
+        if (duplicate) return { error: "That option already exists" }
+
+        // Add the new choice with 0 pool
+        // Recalculate probabilities: choices with pool retain proportional probability,
+        // the new choice gets a small initial probability
+        const totalPool = prop.choices.reduce((sum, c) => sum + c.poolAmount, 0)
+
+        await prisma.$transaction(async (tx) => {
+            // Create new choice
+            await tx.choice.create({
+                data: {
+                    propId,
+                    text: choiceText,
+                    poolAmount: 0,
+                    probability: 0 // will be recalculated below
+                }
+            })
+
+            // Recalculate all probabilities
+            const allChoices = await tx.choice.findMany({ where: { propId } })
+
+            if (totalPool === 0) {
+                // No bets yet: equal distribution
+                const equalProb = 1.0 / allChoices.length
+                for (const c of allChoices) {
+                    await tx.choice.update({
+                        where: { id: c.id },
+                        data: { probability: equalProb }
+                    })
+                }
+            } else {
+                // Bets exist: pool-based choices keep proportional prob, new choice gets 0
+                for (const c of allChoices) {
+                    const newProb = totalPool > 0 ? c.poolAmount / totalPool : 1.0 / allChoices.length
+                    await tx.choice.update({
+                        where: { id: c.id },
+                        data: { probability: newProb }
+                    })
+                }
+            }
+        })
+
+        revalidatePath(`/props/${propId}`)
+        return { success: true }
+    } catch (error) {
+        console.error(error)
+        return { error: "Failed to add choice" }
     }
 }
 
